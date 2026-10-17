@@ -51,6 +51,41 @@ CHALLENGE_COMPLETED = EventDefinition(
     ),
 )
 
+FRIEND_REQUEST = EventDefinition(
+    type="friend_request",
+    category=Category.SOCIAL,
+    fields=(FieldSpec("requester_id", PlayerId()), FieldSpec("recipient_id", PlayerId())),
+    recipient_field="recipient_id",
+    actor_field="requester_id",
+    build_message=lambda _f, actor: f"Player '{actor}' has sent you a friend request.",
+)
+
+FRIEND_ACCEPTED = EventDefinition(
+    type="friend_accepted",
+    category=Category.SOCIAL,
+    fields=(FieldSpec("accepter_id", PlayerId()), FieldSpec("requester_id", PlayerId())),
+    recipient_field="requester_id",  # the original requester is told
+    actor_field="accepter_id",
+    build_message=lambda _f, actor: f"Player '{actor}' has accepted your friend request.",
+)
+
+NEW_FOLLOWER = EventDefinition(
+    type="new_follower",
+    category=Category.SOCIAL,
+    fields=(FieldSpec("follower_id", PlayerId()), FieldSpec("followed_id", PlayerId())),
+    recipient_field="followed_id",
+    actor_field="follower_id",
+    build_message=lambda _f, actor: f"Player '{actor}' is now following you.",
+)
+
 REGISTRY: dict[str, EventDefinition] = {
-    d.type: d for d in (LEVEL_UP, ITEM_ACQUIRED, CHALLENGE_COMPLETED)
+    d.type: d
+    for d in (
+        LEVEL_UP,
+        ITEM_ACQUIRED,
+        CHALLENGE_COMPLETED,
+        FRIEND_REQUEST,
+        FRIEND_ACCEPTED,
+        NEW_FOLLOWER,
+    )
 }

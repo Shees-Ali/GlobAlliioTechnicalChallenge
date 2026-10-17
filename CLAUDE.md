@@ -24,7 +24,7 @@ This project is judged partly on the AI process. After any session that makes a 
 
 ## Verification before saying "done"
 - `pytest` passes.
-- The architecture test (AC-15) passes.
+- The architecture test (`tests/test_architecture.py`, no AC number, serves P2) passes.
 - For API or SSE work, run the app with uvicorn and exercise the endpoint or the demo page once.
 - Re-check the cited FR, NFR and AC IDs against the final behavior.
 

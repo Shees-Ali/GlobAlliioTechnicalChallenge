@@ -7,8 +7,9 @@ from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from typing import Any
 
+from notifications.core.formatting import readable_name
 from notifications.core.notification import Category
-from notifications.core.validation import FieldSpec, PlayerId, PositiveInt
+from notifications.core.validation import FieldSpec, NonEmptyText, PlayerId, PositiveInt
 
 # (event fields, acting player's display name or None) -> message
 MessageBuilder = Callable[[Mapping[str, Any], str | None], str]
@@ -32,4 +33,24 @@ LEVEL_UP = EventDefinition(
     build_message=lambda f, _actor: f"Congratulations! You've reached level {f['new_level']}!",
 )
 
-REGISTRY: dict[str, EventDefinition] = {d.type: d for d in (LEVEL_UP,)}
+ITEM_ACQUIRED = EventDefinition(
+    type="item_acquired",
+    category=Category.GAME,
+    fields=(FieldSpec("player_id", PlayerId()), FieldSpec("item_name", NonEmptyText())),
+    recipient_field="player_id",
+    build_message=lambda f, _actor: f"You've acquired {readable_name(f['item_name'])}!",
+)
+
+CHALLENGE_COMPLETED = EventDefinition(
+    type="challenge_completed",
+    category=Category.GAME,
+    fields=(FieldSpec("player_id", PlayerId()), FieldSpec("challenge_name", NonEmptyText())),
+    recipient_field="player_id",
+    build_message=lambda f, _actor: (
+        f"Challenge completed: {readable_name(f['challenge_name'])}. Well done!"
+    ),
+)
+
+REGISTRY: dict[str, EventDefinition] = {
+    d.type: d for d in (LEVEL_UP, ITEM_ACQUIRED, CHALLENGE_COMPLETED)
+}

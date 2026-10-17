@@ -2,7 +2,7 @@
 
 Each task starts with the failing test, adds the minimum code to pass, then runs the whole suite. Tick the box when the suite is green. One commit per task.
 
-- [x] 001-T1 Project baseline. Add `pyproject.toml` (package `notifications`, runtime `fastapi` and `uvicorn`, dev `pytest` and `httpx`), the empty package layout, `.gitignore` for the virtual environment, and `tests/test_architecture.py` that fails if any module under `core` imports fastapi, starlette, pydantic or uvicorn. Test first: the architecture test with a sample import-scanning check. Record install and test commands in AGENTS.md. (P2, P6)
+- [x] 001-T1 Project baseline. Add `pyproject.toml` (package `notifications`, runtime `fastapi` and `uvicorn`, dev `pytest` and `httpx2`), the empty package layout, `.gitignore` for the virtual environment, and `tests/test_architecture.py` that fails if any module under `core` imports fastapi, starlette, pydantic or uvicorn. Test first: the architecture test with a sample import-scanning check. Record install and test commands in AGENTS.md. (P2, P6)
 - [x] 001-T2 `Category`, `Notification` and `InvalidEventError`. Test first: a notification holds recipient id, category, event type and message and is immutable. The error carries a reason code and message and no transport details. (FR-5, FR-9, FR-15)
 - [x] 001-T3 Interfaces and the in-memory directory. Test first: `UserRecord`, the `UserDirectory` and `NotificationDelivery` interfaces, and a dict-backed directory that returns a record or `None`. Add a recording fake delivery as a shared test helper. (FR-13, FR-18)
 - [x] 001-T4 Readable names. Test first: `SwordOfAzeroth` becomes `Sword Of Azeroth`, and a name containing spaces is unchanged. (FR-17, AC-16)

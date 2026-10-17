@@ -93,9 +93,9 @@ Preference behavior is out of scope here, so in this feature every processed eve
 - The same event submitted twice produces two notifications. Duplicate handling is deferred (functional spec section 6).
 - An event with a missing recipient or missing content detail, or of an unsupported type: rejected with an error (FR-15).
 - Self-targeted social events: rejected (FR-16). Upstream normally prevents them, so this is a defensive check.
-- Unknown player ID: rejected (FR-14, proposed).
+- Unknown player ID, as recipient or as acting player, for any event type: rejected (FR-14).
 - Empty or whitespace-only item or quest name: rejected as malformed (FR-15).
-- Unknown extra field in the payload: rejected as malformed (FR-15). Assumption from the owner's "malicious sender" reasoning, to be confirmed.
+- Unknown extra field in the payload: rejected as malformed (FR-15). Approved by the owner with the tasks, in line with the "malicious sender" reasoning behind FR-14.
 - A payload that is not an object: rejected (FR-15).
 - The module is independent of how the event arrived. The same payload gives the same outcome over HTTP, a WebSocket, a broker or a direct call (FR-1).
 
@@ -110,21 +110,20 @@ Preference behavior is out of scope here, so in this feature every processed eve
 - Non-functional requirements (specified later, component by component).
 
 ## Open questions
-| # | Question | Notes |
-|---|---|---|
-None open for this feature.
+None. All questions raised for this feature are resolved. The reasoning is in `docs/ai-process/README.md` (decisions 4 and 5).
 
-Resolved by the owner (moved to the decision log):
-- Q15: a player with a directory entry but no delivery token is a valid event. The module passes what the directory holds, and the outcome is decided in feature 003 (delivery failure behavior).
-- Q13: an unknown player ID is rejected for every event type, including game events (FR-14). Reason: such an event should never be sent, and processing it could serve a malicious sender.
-- Q14: names are shown with spaces only, "Sword Of Azeroth" (FR-17).
-- The user directory also holds each player's delivery token (FR-18).
-- Q1: the `Notification` class was not provided, we define our own.
-- Q9: events carry IDs only, names come from a user directory lookup (FR-12, FR-13).
-- Q10: invalid events are rejected with an error to the sender (FR-15).
-- Q11: self-targeted social events are invalid (FR-16).
-- Q12: item names are shown as readable words (FR-17).
-- Q3 and Q4 from `docs/spec/spec.md` are answered by the functional spec (Friend Accepted notifies the original requester; upstream decides which items qualify), reflected in FR-6 and FR-3.
+| # | Question | Resolution | Where it landed |
+|---|---|---|---|
+| Q1 | A `Notification` class was said to be provided but was not attached. | We define our own. | FR-9 |
+| Q3 | Who is notified when a friend request is accepted? | The original requester. Answered by the functional spec. | FR-6 |
+| Q4 | What counts as a rare or valuable item? | The producer decides. The module notifies every item and challenge it receives. | FR-3 |
+| Q9 | How does the module get display names? | Events carry IDs only. Names come from a user directory lookup. | FR-12, FR-13 |
+| Q10 | What happens to an invalid event? | Rejected with an error returned to the sender. | FR-15 |
+| Q11 | Are self-targeted social events notified? | No, they are invalid. | FR-16 |
+| Q12 | How are item names shown? | As separate words. | FR-17 |
+| Q13 | Is an event for an unknown player ID processed? | No, it is rejected for every event type. | FR-14 |
+| Q14 | Spaces only, or also lowercase small words? | Spaces only ("Sword Of Azeroth"). | FR-17 |
+| Q15 | Is a player with no delivery token valid? | Yes. What delivery does about it is decided in feature 003. | FR-18, feature 003 |
 
 ## Traceability
 | ID | Test | Status |

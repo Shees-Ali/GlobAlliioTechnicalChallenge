@@ -8,7 +8,7 @@ Build a framework-free core with one entry point, `handle_event(payload)`. It va
 
 ## 2. Technical context
 - Language and framework: Python 3.12 with FastAPI (owner decision: the module is FastAPI-based so that WebSocket or other intake mechanisms can be added later). The core stays framework-free and FastAPI lives only in the `api` adapter.
-- New dependencies: runtime `fastapi` and `uvicorn` (the app and the server to run it); dev `pytest` and `httpx` (test runner, and the client FastAPI's `TestClient` needs). Needs owner approval (CLAUDE.md asks before adding any dependency).
+- New dependencies: runtime `fastapi` and `uvicorn` (the app and the server to run it); dev `pytest` and `httpx2` (test runner, and the client FastAPI's `TestClient` needs; replaced `httpx` after Starlette deprecated it). Needs owner approval (CLAUDE.md asks before adding any dependency).
 - Storage: none. The user directory is an in-memory simulated dependency.
 - Testing approach: unit tests against the core with a fake delivery and an in-memory directory, no server (P2). A few API tests through `TestClient` for the HTTP adapter only.
 - Constraints from the brief and base spec: in-app only, delivery is simulated, no broker or WebSocket, must run from a fresh clone with a documented command.

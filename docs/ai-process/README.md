@@ -63,3 +63,6 @@ Feature decisions are appended below as each feature is built.
   - Python 3.13 was used locally. The project requires 3.12 or newer.
 - Hand-run under uvicorn: the four brief examples and two more valid events returned 200 and reached delivery with correct recipients and tokens. Self-targeted, unknown-player and unsupported-type events returned 422 with the reason code.
 - Open for the owner: Starlette warns that `httpx` with its test client is deprecated and suggests `httpx2`. No change made, since the dev dependency list was approved as written.
+
+**8. Dev dependency switched from httpx to httpx2.**
+- Owner decision after the deprecation warning raised at the close of 001. `pyproject.toml` now lists `httpx2>=2.13`. The change was made and the 207 tests re-run inside the project `.venv` (checked that the interpreter prefix is `.venv`). The warning is gone.

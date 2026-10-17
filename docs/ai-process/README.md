@@ -50,3 +50,16 @@ Feature decisions are appended below as each feature is built.
 - Assumed, not stated by the owner: unknown extra fields are rejected, and the `POST /events` route is built in 001. Remaining Pending plan rows were marked accepted when the owner asked for tasks. All three are to be confirmed or reversed.
 - Produced: `tasks.md` with twelve test-first tasks (T1 to T12).
 - Found while planning: CLAUDE.md refers to an "architecture test (AC-15)" but no spec defines it, and AC-15 in 001 means something else. Raised as risk R1 for the owner.
+
+**7. Feature 001 implemented.**
+- Owner resolved the AC-15 naming clash: AC-15 stays the unknown-player criterion, and CLAUDE.md now names the architecture test by its file (`tests/test_architecture.py`) with no AC number. Owner approved the tasks and asked for implementation.
+- Built test first in twelve small commits (T1 to T12) on branch `feature/001-event-intake-and-dispatch`. Result: 207 passing tests, all 17 ACs traced to tests in the spec.
+- The architecture test was checked for real by adding a probe file that imports fastapi to `core` and confirming the test failed, then removing it.
+- Findings from implementing, not from the first draft:
+  - The unknown-player check landed in T6 through the shared lookup helper, so the T9 unknown-player tests passed on arrival. T9's real new code was the self-target check, which runs before any directory lookup.
+  - The T10 registry-wide matrix found no gaps, because the T5 validator already covered every case. It stays because it covers any future event type automatically.
+  - Messages do not invent facts: the item message says "You've acquired Sword Of Azeroth!", not "legendary", since the module does not know rarity (FR-3).
+  - `ConsoleDelivery` and `SAMPLE_USERS` were added so the app can run under uvicorn. They are placeholders that feature 003 and 004 replace.
+  - Python 3.13 was used locally. The project requires 3.12 or newer.
+- Hand-run under uvicorn: the four brief examples and two more valid events returned 200 and reached delivery with correct recipients and tokens. Self-targeted, unknown-player and unsupported-type events returned 422 with the reason code.
+- Open for the owner: Starlette warns that `httpx` with its test client is deprecated and suggests `httpx2`. No change made, since the dev dependency list was approved as written.

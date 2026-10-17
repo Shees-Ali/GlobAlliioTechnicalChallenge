@@ -1,7 +1,7 @@
 # Plan: Feature 001 Event intake and dispatch
 
 Implements: [spec.md](spec.md)
-Status: Reviewed by owner (decisions in section 5; two marked as assumptions)
+Status: Implemented
 
 ## 1. Summary
 Build a framework-free core with one entry point, `handle_event(payload)`. It validates the raw event, looks up the players in a user directory, builds a `Notification` and calls the delivery dependency once, all synchronously. Each of the six event types is one declarative definition in a registry, so adding an event type means adding one definition. The user directory and the delivery dependency are the two seams, each a small interface with a simulated in-memory implementation. FastAPI is the project framework and sits in a thin `api` adapter that exposes the core over HTTP (`POST /events`). Because the core never imports FastAPI, a WebSocket or broker intake later is another adapter calling the same `handle_event`. This feature also sets up the project baseline (language, layout, test command).

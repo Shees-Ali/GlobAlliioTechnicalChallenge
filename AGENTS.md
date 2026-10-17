@@ -41,7 +41,7 @@ python -m venv .venv
 .venv\Scripts\activate            # Windows (source .venv/bin/activate on macOS and Linux)
 pip install -e ".[dev]"           # install
 pytest                            # test
-uvicorn notifications.api.app:app # run (available from task 001-T11)
+uvicorn notifications.api.app:app # run, then POST JSON to http://127.0.0.1:8000/events
 ```
 
 ## Standards that apply regardless of design

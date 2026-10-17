@@ -27,6 +27,12 @@ class NotificationService:
         event_type, fields = validate_payload(payload, specs)
         definition = self._registry[event_type]
 
+        if (
+            definition.actor_field is not None
+            and fields[definition.actor_field] == fields[definition.recipient_field]
+        ):
+            raise InvalidEventError(ErrorCode.SELF_TARGETED, "a player cannot target themselves")
+
         recipient = self._lookup(fields[definition.recipient_field])
         actor_name = None
         if definition.actor_field is not None:

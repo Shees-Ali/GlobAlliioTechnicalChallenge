@@ -18,6 +18,25 @@ These files set the process and make no design decisions. Features are picked on
 
 Feature decisions are appended below as each feature is built.
 
+## Tools used
+
+Updated whenever a tool is added or used differently.
+
+| Tool | How it was used |
+|---|---|
+| Claude Code in the VS Code extension, model Claude Sonnet 5.5 | The only AI tool so far. Drafted the specs, plans and tasks, wrote tests and code, ran the suite, and kept the logs. It worked in one long session with the project owner. |
+| `AGENTS.md` and `CLAUDE.md` | Standing instructions the agent reads at session start: spec-first workflow, one file at a time for review, test first, ask before adding dependencies, log the process. |
+| Claude Code's structured question tool | Used when the agent needed an owner decision with options and tradeoffs. First use: the feature split (decision 3). Most other decisions were put as tables in chat or in the plan and answered in free text. |
+| File read, write and edit tools; shell | Read the base docs at session start, wrote the docs and code, ran `pytest`, `git`, `curl` and `uvicorn`. |
+| `pytest`, `uvicorn`, `curl`, a Python virtual environment | Verification. `pytest` after every task, and one hand run of the real app with `curl` before closing 001. |
+
+Not used so far, so reviewers are not misled: subagents (the `spec-reviewer` and `test-writer` roles in CLAUDE.md), plan mode, any MCP integration, and any second AI tool. Plan mode was skipped for task 001-T1 even though it touched more than three files, because the reviewed `plan.md` and `tasks.md` already fixed the design. That was a judgment call, not an instruction followed.
+
+How the agent was kept honest:
+- Tasks T2 to T9 and T11 each started with a test that was run and seen to fail. Exceptions: T1, whose architecture test passes on an empty `core`, so it was checked by adding a probe import and seeing it fail; and T10, whose tests passed on arrival (decision 7).
+- The agent stated its assumptions instead of hiding them. They are listed in decision 6.
+- The owner reviewed each spec and plan before code and changed the agent's draft where it disagreed: names looked up from a user directory instead of carried in the event (4), the delivery token (5), FastAPI instead of the standard library only (6), and `httpx2` instead of `httpx` (8).
+
 ## Functional spec intake
 
 **3. Split the functional spec component-wise into four features.**
@@ -66,3 +85,23 @@ Feature decisions are appended below as each feature is built.
 
 **8. Dev dependency switched from httpx to httpx2.**
 - Owner decision after the deprecation warning raised at the close of 001. `pyproject.toml` now lists `httpx2>=2.13`. The change was made and the 207 tests re-run inside the project `.venv` (checked that the interpreter prefix is `.venv`). The warning is gone.
+
+## Prompt log
+
+The owner's prompts that changed the direction of the work, quoted from the session (dictated, so lightly trimmed for filler). The right-hand column says what the prompt changed. Entries are added with each major decision or change.
+
+| Decision | Owner prompt | What it changed |
+|---|---|---|
+| 3 | "I am providing you with the functional spec for the platform. Create relevant spec documents for the functional spec and then after that we will move on to the non-functional specs and we will keep it component-wise." | Started the work. The agent asked how to split the spec, offered three options, and the owner chose four component features. |
+| 4 | "the events will not carry display names and the module will look them up from a user directory. The reason for that is that for the recipient, we are only going to receive an ID." | Added the user directory and FR-12, FR-13. Moved display names out of the event contract. |
+| 4 | "if we actually receive an invalid event, we will reject and let the sending system know that the event type is invalid." | Added FR-15: invalid events are rejected with an error to the sender, not ignored or logged. |
+| 5 | "the user directory will also contain ... the push notification token ... which is why I said we were looking the recipient up anywhere." | Added FR-18 and AC-17. The recipient is looked up on every event, and the delivery call carries the token. |
+| 5 | "we should be rejecting that instead of processing it because that could be malicious or a threat actor could be sending that." | Confirmed FR-14: an unknown player ID is rejected for every event type, including game events. |
+| 6 | "instead of it being only the standard Python library. The overall module is supposed to use FastAPI ... in future we can add WebSockets or any other mechanism for the intake" | Reversed the agent's draft. FastAPI became the framework, in a thin `api` adapter, with `core` kept framework free. |
+| 6 | "How are we going to make sure that the events ... conform to the requirements ... without Pydantic" | The agent compared three validation options with tradeoffs. The owner chose declarative field specs in core. |
+| 6 | "keep the intake and dispatch layer platform agnostic ... it could be WebSockets, or RabbitMQ, anything" | Added the Intake neutrality section: the core takes a mapping and raises a coded error, and each transport maps it itself. |
+| 7 | "The architecture naming point should be resolved, so that the unknown player AC15 is the one that we are using ... I am happy with the task. Start with the actual implementation." | Resolved the AC-15 clash, edited CLAUDE.md, and started implementation. |
+| 8 | "switch the dev dependency and make sure we are using venv" | Replaced `httpx` with `httpx2`, and the check was done inside `.venv`. |
+| 9 | "The AI process record is strong on decisions but lighter on tool usage and representative prompts ... Add the actual tools used and meaningful prompt examples as the project develops" | Added the Tools used section and this log, and made the rule standing in CLAUDE.md. |
+
+Agent prompts worth noting: the CLAUDE.md and AGENTS.md rules ("draft one file at a time", "ask before adding a dependency", "state the task ID and requirement IDs") shaped how the agent responded to every prompt above. Without them the agent would have drafted all four specs at once.

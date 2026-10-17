@@ -18,9 +18,10 @@ The shared rules live in `AGENTS.md` (imported above). This file adds only what 
 
 ## Process log (required)
 This project is judged partly on the AI process. After any session that makes a notable decision, append to `docs/ai-process/README.md`:
-- the prompt or instruction in one line,
+- the prompt or instruction in one line (quote the owner's wording in the Prompt log table in `docs/ai-process/README.md`),
 - what was produced,
-- any decision that came from reviewing the output rather than the first draft.
+- any decision that came from reviewing the output rather than the first draft,
+- the tools used, if a new tool, subagent, plan mode or integration was used for the first time or differently (update the Tools used section, and say what was not used).
 
 ## Verification before saying "done"
 - `pytest` passes.

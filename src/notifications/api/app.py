@@ -21,12 +21,12 @@ def create_app(service: NotificationService) -> FastAPI:
                 payload = await request.json()
             except ValueError:
                 raise InvalidEventError(ErrorCode.MALFORMED_FIELD, "body is not valid JSON")
-            service.handle_event(payload)
+            outcome = service.handle_event(payload)
         except InvalidEventError as error:
             return JSONResponse(
                 status_code=422, content={"code": error.code.value, "message": error.message}
             )
-        return JSONResponse(content={"status": "processed"})
+        return JSONResponse(content={"status": outcome.value})
 
     return app
 

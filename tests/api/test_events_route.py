@@ -60,3 +60,42 @@ def test_a_body_that_is_not_json_is_rejected(client, delivery):
     assert response.status_code == 422
     assert response.json()["code"] == "MALFORMED_FIELD"
     assert delivery.calls == []
+
+
+def test_a_duplicate_event_returns_200_with_a_duplicate_status(client, delivery):  # AC-20, AC-19
+    body = {"event_id": "evt-http-dup", "type": "level_up", "player_id": 1, "new_level": 15}
+
+    first = client.post("/events", json=body)
+    second = client.post("/events", json=body)
+
+    assert (first.status_code, first.json()) == (200, {"status": "processed"})
+    assert (second.status_code, second.json()) == (200, {"status": "duplicate"})
+    assert len(delivery.calls) == 1
+
+
+def test_the_same_content_with_a_new_event_id_is_delivered_again(client, delivery):  # AC-21
+    client.post("/events", json={"event_id": new_id(), "type": "level_up", "player_id": 1, "new_level": 15})
+    second = client.post("/events", json={"event_id": new_id(), "type": "level_up", "player_id": 1, "new_level": 15})
+
+    assert second.json() == {"status": "processed"}
+    assert len(delivery.calls) == 2
+
+
+def test_an_event_without_an_event_id_returns_422(client, delivery):  # AC-18
+    response = client.post("/events", json={"type": "level_up", "player_id": 1, "new_level": 15})
+
+    assert response.status_code == 422
+    assert response.json()["code"] == "MISSING_FIELD"
+    assert "event_id" in response.json()["message"]
+    assert delivery.calls == []
+
+
+def test_a_rejected_event_can_be_resent_corrected_with_the_same_id(client, delivery):  # AC-22
+    bad = {"event_id": "evt-fix", "type": "level_up", "player_id": 99, "new_level": 5}
+    good = {"event_id": "evt-fix", "type": "level_up", "player_id": 1, "new_level": 5}
+
+    assert client.post("/events", json=bad).status_code == 422
+    resent = client.post("/events", json=good)
+
+    assert resent.json() == {"status": "processed"}
+    assert len(delivery.calls) == 1

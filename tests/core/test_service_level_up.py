@@ -1,9 +1,11 @@
 import pytest
 
+from fakes import new_id
+
 from notifications.core.notification import Category
 from notifications.core.service import NotificationService
 
-LEVEL_UP = {"type": "level_up", "player_id": 1, "new_level": 15}
+LEVEL_UP = {"event_id": new_id(), "type": "level_up", "player_id": 1, "new_level": 15}
 
 
 @pytest.fixture

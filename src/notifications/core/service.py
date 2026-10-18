@@ -24,7 +24,8 @@ class NotificationService:
     def handle_event(self, payload: Any) -> None:
         """Process one event synchronously. Raises InvalidEventError if it is rejected."""
         specs = {name: d.fields for name, d in self._registry.items()}
-        event_type, fields = validate_payload(payload, specs)
+        event = validate_payload(payload, specs)
+        event_type, fields = event.event_type, event.fields
         definition = self._registry[event_type]
 
         if (

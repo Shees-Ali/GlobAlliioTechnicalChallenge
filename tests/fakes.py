@@ -1,5 +1,7 @@
 """Test doubles shared by the suite."""
 
+import itertools
+
 from notifications.core.notification import Notification
 from notifications.core.ports import UserRecord
 from notifications.simulated.in_memory_directory import InMemoryUserDirectory
@@ -25,3 +27,11 @@ class RecordingDirectory(InMemoryUserDirectory):
     def get(self, player_id: int) -> UserRecord | None:
         self.lookups.append(player_id)
         return super().get(player_id)
+
+
+_ids = itertools.count(1)
+
+
+def new_id() -> str:
+    """A fresh event ID, so each test event is a distinct event."""
+    return f"evt-{next(_ids)}"

@@ -7,6 +7,7 @@ from typing import Any
 from notifications.core.errors import ErrorCode, InvalidEventError
 
 TYPE_KEY = "type"
+EVENT_ID_KEY = "event_id"
 
 
 def _is_int(value: Any) -> bool:
@@ -30,18 +31,33 @@ class NonEmptyText:
         return isinstance(value, str) and bool(value.strip()) and len(value) <= self.max_length
 
 
+class EventId(NonEmptyText):
+    """The producer's idempotency key: an opaque, non-blank string."""
+
+    def __init__(self) -> None:
+        super().__init__(max_length=128)
+
+
 @dataclass(frozen=True)
 class FieldSpec:
     name: str
     kind: PositiveInt | NonEmptyText
 
 
+@dataclass(frozen=True)
+class ValidatedEvent:
+    event_type: str
+    event_id: str
+    fields: dict[str, Any]
+
+
 def validate_payload(
     payload: Any, specs_by_type: Mapping[str, Sequence[FieldSpec]]
-) -> tuple[str, dict[str, Any]]:
+) -> ValidatedEvent:
     """Check a raw payload against the field specs of its event type.
 
-    Returns the event type and its fields, or raises InvalidEventError.
+    Every event carries the common fields `type` and `event_id` on top of the fields
+    of its type. Returns the validated event, or raises InvalidEventError.
     """
     if not isinstance(payload, Mapping):
         raise InvalidEventError(ErrorCode.MALFORMED_FIELD, "event must be an object")
@@ -52,7 +68,7 @@ def validate_payload(
             ErrorCode.UNSUPPORTED_EVENT_TYPE, f"unsupported event type: {event_type!r}"
         )
 
-    specs = specs_by_type[event_type]
+    specs = [FieldSpec(EVENT_ID_KEY, EventId()), *specs_by_type[event_type]]
     for spec in specs:
         if spec.name not in payload:
             raise InvalidEventError(ErrorCode.MISSING_FIELD, f"missing field '{spec.name}'")
@@ -65,4 +81,8 @@ def validate_payload(
         if key not in allowed:
             raise InvalidEventError(ErrorCode.MALFORMED_FIELD, f"unexpected field '{key}'")
 
-    return event_type, {spec.name: payload[spec.name] for spec in specs}
+    return ValidatedEvent(
+        event_type=event_type,
+        event_id=payload[EVENT_ID_KEY],
+        fields={spec.name: payload[spec.name] for spec in specs[1:]},
+    )

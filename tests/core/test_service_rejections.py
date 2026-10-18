@@ -1,5 +1,7 @@
 import pytest
 
+from fakes import new_id
+
 from notifications.core.errors import ErrorCode, InvalidEventError
 from notifications.core.service import NotificationService
 
@@ -20,9 +22,9 @@ def assert_rejected(service, delivery, payload, code):
 @pytest.mark.parametrize(
     "payload",
     [
-        {"type": "friend_request", "requester_id": 1, "recipient_id": 1},
-        {"type": "friend_accepted", "accepter_id": 2, "requester_id": 2},
-        {"type": "new_follower", "follower_id": 3, "followed_id": 3},
+        {"event_id": new_id(), "type": "friend_request", "requester_id": 1, "recipient_id": 1},
+        {"event_id": new_id(), "type": "friend_accepted", "accepter_id": 2, "requester_id": 2},
+        {"event_id": new_id(), "type": "new_follower", "follower_id": 3, "followed_id": 3},
     ],
 )
 def test_a_self_targeted_social_event_is_rejected(service, delivery, payload):  # AC-14
@@ -33,7 +35,7 @@ def test_a_self_targeted_event_is_rejected_before_any_lookup(service, delivery, 
     assert_rejected(
         service,
         delivery,
-        {"type": "new_follower", "follower_id": 3, "followed_id": 3},
+        {"event_id": new_id(), "type": "new_follower", "follower_id": 3, "followed_id": 3},
         ErrorCode.SELF_TARGETED,
     )
     assert directory.lookups == []
@@ -42,9 +44,9 @@ def test_a_self_targeted_event_is_rejected_before_any_lookup(service, delivery, 
 @pytest.mark.parametrize(
     "payload",
     [
-        {"type": "level_up", "player_id": 99, "new_level": 5},
-        {"type": "item_acquired", "player_id": 99, "item_name": "Sword"},
-        {"type": "challenge_completed", "player_id": 99, "challenge_name": "Quest"},
+        {"event_id": new_id(), "type": "level_up", "player_id": 99, "new_level": 5},
+        {"event_id": new_id(), "type": "item_acquired", "player_id": 99, "item_name": "Sword"},
+        {"event_id": new_id(), "type": "challenge_completed", "player_id": 99, "challenge_name": "Quest"},
     ],
 )
 def test_an_unknown_recipient_is_rejected_for_game_events(service, delivery, payload):  # AC-15
@@ -55,9 +57,9 @@ def test_an_unknown_recipient_is_rejected_for_game_events(service, delivery, pay
 @pytest.mark.parametrize(
     "payload",
     [
-        {"type": "friend_request", "requester_id": 3, "recipient_id": 99},
-        {"type": "friend_accepted", "accepter_id": 1, "requester_id": 99},
-        {"type": "new_follower", "follower_id": 4, "followed_id": 99},
+        {"event_id": new_id(), "type": "friend_request", "requester_id": 3, "recipient_id": 99},
+        {"event_id": new_id(), "type": "friend_accepted", "accepter_id": 1, "requester_id": 99},
+        {"event_id": new_id(), "type": "new_follower", "follower_id": 4, "followed_id": 99},
     ],
 )
 def test_an_unknown_recipient_is_rejected_for_social_events(service, delivery, payload):  # AC-15
@@ -68,9 +70,9 @@ def test_an_unknown_recipient_is_rejected_for_social_events(service, delivery, p
 @pytest.mark.parametrize(
     "payload",
     [
-        {"type": "friend_request", "requester_id": 99, "recipient_id": 1},
-        {"type": "friend_accepted", "accepter_id": 99, "requester_id": 3},
-        {"type": "new_follower", "follower_id": 99, "followed_id": 2},
+        {"event_id": new_id(), "type": "friend_request", "requester_id": 99, "recipient_id": 1},
+        {"event_id": new_id(), "type": "friend_accepted", "accepter_id": 99, "requester_id": 3},
+        {"event_id": new_id(), "type": "new_follower", "follower_id": 99, "followed_id": 2},
     ],
 )
 def test_an_unknown_acting_player_is_rejected(service, delivery, payload):  # AC-15

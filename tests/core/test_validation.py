@@ -6,6 +6,7 @@ from notifications.core.validation import (
     NonEmptyText,
     PlayerId,
     PositiveInt,
+    ValidatedEvent,
     validate_payload,
 )
 
@@ -16,7 +17,7 @@ SPECS = {
         FieldSpec("label", NonEmptyText(max_length=10)),
     ]
 }
-VALID = {"type": "demo", "player_id": 1, "level": 15, "label": "hello"}
+VALID = {"type": "demo", "event_id": "evt-1", "player_id": 1, "level": 15, "label": "hello"}
 
 
 def rejected(payload) -> InvalidEventError:
@@ -25,10 +26,11 @@ def rejected(payload) -> InvalidEventError:
     return info.value
 
 
-def test_accepts_a_correct_payload_and_returns_type_and_fields():
-    assert validate_payload(VALID, SPECS) == (
-        "demo",
-        {"player_id": 1, "level": 15, "label": "hello"},
+def test_accepts_a_correct_payload_and_returns_type_id_and_fields():
+    assert validate_payload(VALID, SPECS) == ValidatedEvent(
+        event_type="demo",
+        event_id="evt-1",
+        fields={"player_id": 1, "level": 15, "label": "hello"},
     )
 
 
@@ -48,7 +50,7 @@ def test_rejects_a_missing_type():
     assert rejected(payload).code is ErrorCode.UNSUPPORTED_EVENT_TYPE
 
 
-@pytest.mark.parametrize("field", ["player_id", "level", "label"])
+@pytest.mark.parametrize("field", ["event_id", "player_id", "level", "label"])
 def test_rejects_a_missing_field_and_names_it(field):
     payload = {k: v for k, v in VALID.items() if k != field}
     err = rejected(payload)
@@ -74,6 +76,13 @@ def test_rejects_a_missing_field_and_names_it(field):
         ("label", 123),
         ("label", None),
         ("label", "x" * 11),  # over max_length
+        ("event_id", ""),  # AC-18
+        ("event_id", "   "),
+        ("event_id", 5),
+        ("event_id", True),
+        ("event_id", None),
+        ("event_id", ["evt-1"]),
+        ("event_id", "x" * 129),
     ],
 )
 def test_rejects_a_value_of_the_wrong_kind_and_names_the_field(field, bad_value):
@@ -83,7 +92,11 @@ def test_rejects_a_value_of_the_wrong_kind_and_names_the_field(field, bad_value)
 
 
 def test_accepts_text_at_the_length_limit():
-    assert validate_payload({**VALID, "label": "x" * 10}, SPECS)[1]["label"] == "x" * 10
+    assert validate_payload({**VALID, "label": "x" * 10}, SPECS).fields["label"] == "x" * 10
+
+
+def test_accepts_an_event_id_at_the_length_limit():
+    assert validate_payload({**VALID, "event_id": "x" * 128}, SPECS).event_id == "x" * 128
 
 
 def test_rejects_an_unknown_extra_field():

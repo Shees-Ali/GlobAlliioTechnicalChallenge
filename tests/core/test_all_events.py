@@ -2,6 +2,8 @@
 
 import pytest
 
+from fakes import new_id
+
 from notifications.core.errors import ErrorCode, InvalidEventError
 from notifications.core.events import REGISTRY
 from notifications.core.notification import Category
@@ -9,12 +11,12 @@ from notifications.core.service import NotificationService
 from notifications.core.validation import NonEmptyText
 
 VALID_PAYLOADS = {
-    "level_up": {"type": "level_up", "player_id": 1, "new_level": 15},
-    "item_acquired": {"type": "item_acquired", "player_id": 2, "item_name": "SwordOfAzeroth"},
-    "challenge_completed": {"type": "challenge_completed", "player_id": 3, "challenge_name": "Quest"},
-    "friend_request": {"type": "friend_request", "requester_id": 3, "recipient_id": 1},
-    "friend_accepted": {"type": "friend_accepted", "accepter_id": 1, "requester_id": 3},
-    "new_follower": {"type": "new_follower", "follower_id": 4, "followed_id": 2},
+    "level_up": {"event_id": new_id(), "type": "level_up", "player_id": 1, "new_level": 15},
+    "item_acquired": {"event_id": new_id(), "type": "item_acquired", "player_id": 2, "item_name": "SwordOfAzeroth"},
+    "challenge_completed": {"event_id": new_id(), "type": "challenge_completed", "player_id": 3, "challenge_name": "Quest"},
+    "friend_request": {"event_id": new_id(), "type": "friend_request", "requester_id": 3, "recipient_id": 1},
+    "friend_accepted": {"event_id": new_id(), "type": "friend_accepted", "accepter_id": 1, "requester_id": 3},
+    "new_follower": {"event_id": new_id(), "type": "new_follower", "follower_id": 4, "followed_id": 2},
 }
 EXPECTED_CATEGORY = {
     "level_up": Category.GAME,
@@ -90,7 +92,7 @@ def test_an_unknown_extra_field_is_rejected(service, delivery, event_type):  # A
     assert_rejected_without_delivery(service, delivery, payload, ErrorCode.MALFORMED_FIELD)
 
 
-@pytest.mark.parametrize("payload", [{}, {"type": "pvp_defeated", "player_id": 1}, {"type": None}])
+@pytest.mark.parametrize("payload", [{}, {"event_id": new_id(), "type": "pvp_defeated", "player_id": 1}, {"event_id": new_id(), "type": None}])
 def test_an_unsupported_event_type_is_rejected(service, delivery, payload):  # AC-13
     assert_rejected_without_delivery(service, delivery, payload, ErrorCode.UNSUPPORTED_EVENT_TYPE)
 
@@ -108,7 +110,28 @@ def test_events_are_independent_of_each_other(service, delivery):  # AC-10
 
 def test_a_rejected_event_does_not_affect_the_next_one(service, delivery):  # FR-11
     with pytest.raises(InvalidEventError):
-        service.handle_event({"type": "level_up", "player_id": 99, "new_level": 2})
+        service.handle_event({"event_id": new_id(), "type": "level_up", "player_id": 99, "new_level": 2})
     service.handle_event(VALID_PAYLOADS["level_up"])
     assert len(delivery.calls) == 1
     assert delivery.calls[0][0].recipient_id == 1
+
+
+@pytest.mark.parametrize("event_type", ALL_TYPES)
+def test_a_missing_event_id_is_rejected(service, delivery, event_type):  # AC-18
+    payload = {k: v for k, v in VALID_PAYLOADS[event_type].items() if k != "event_id"}
+    with pytest.raises(InvalidEventError) as info:
+        service.handle_event(payload)
+    assert info.value.code is ErrorCode.MISSING_FIELD
+    assert "event_id" in info.value.message
+    assert delivery.calls == []
+
+
+@pytest.mark.parametrize("event_type", ALL_TYPES)
+@pytest.mark.parametrize("bad_id", [None, True, 5, 1.5, [], {}, "", "   ", "x" * 129])
+def test_a_malformed_event_id_is_rejected(service, delivery, event_type, bad_id):  # AC-18
+    payload = {**VALID_PAYLOADS[event_type], "event_id": bad_id}
+    with pytest.raises(InvalidEventError) as info:
+        service.handle_event(payload)
+    assert info.value.code is ErrorCode.MALFORMED_FIELD
+    assert "event_id" in info.value.message
+    assert delivery.calls == []

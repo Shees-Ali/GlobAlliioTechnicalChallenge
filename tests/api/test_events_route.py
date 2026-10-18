@@ -1,4 +1,6 @@
 import pytest
+
+from fakes import new_id
 from fastapi.testclient import TestClient
 
 from notifications.api.app import create_app
@@ -11,7 +13,7 @@ def client(directory, delivery) -> TestClient:
 
 
 def test_a_valid_event_returns_200_and_delivery_has_already_been_invoked(client, delivery):  # AC-8
-    response = client.post("/events", json={"type": "level_up", "player_id": 1, "new_level": 15})
+    response = client.post("/events", json={"event_id": new_id(), "type": "level_up", "player_id": 1, "new_level": 15})
 
     assert response.status_code == 200
     assert response.json() == {"status": "processed"}
@@ -20,7 +22,7 @@ def test_a_valid_event_returns_200_and_delivery_has_already_been_invoked(client,
 
 
 def test_the_brief_example_friend_request_reaches_user_1(client, delivery):
-    client.post("/events", json={"type": "friend_request", "requester_id": 3, "recipient_id": 1})
+    client.post("/events", json={"event_id": new_id(), "type": "friend_request", "requester_id": 3, "recipient_id": 1})
     notification, _ = delivery.calls[0]
     assert notification.recipient_id == 1
     assert "Carol" in notification.message
@@ -29,12 +31,12 @@ def test_the_brief_example_friend_request_reaches_user_1(client, delivery):
 @pytest.mark.parametrize(
     ("body", "code"),
     [
-        ({"type": "pvp_defeated", "player_id": 1}, "UNSUPPORTED_EVENT_TYPE"),
-        ({"type": "level_up", "player_id": 1}, "MISSING_FIELD"),
-        ({"type": "level_up", "player_id": 1, "new_level": "15"}, "MALFORMED_FIELD"),
-        ({"type": "level_up", "player_id": 1, "new_level": 5, "x": 1}, "MALFORMED_FIELD"),
-        ({"type": "new_follower", "follower_id": 3, "followed_id": 3}, "SELF_TARGETED"),
-        ({"type": "level_up", "player_id": 99, "new_level": 5}, "UNKNOWN_PLAYER"),
+        ({"event_id": new_id(), "type": "pvp_defeated", "player_id": 1}, "UNSUPPORTED_EVENT_TYPE"),
+        ({"event_id": new_id(), "type": "level_up", "player_id": 1}, "MISSING_FIELD"),
+        ({"event_id": new_id(), "type": "level_up", "player_id": 1, "new_level": "15"}, "MALFORMED_FIELD"),
+        ({"event_id": new_id(), "type": "level_up", "player_id": 1, "new_level": 5, "x": 1}, "MALFORMED_FIELD"),
+        ({"event_id": new_id(), "type": "new_follower", "follower_id": 3, "followed_id": 3}, "SELF_TARGETED"),
+        ({"event_id": new_id(), "type": "level_up", "player_id": 99, "new_level": 5}, "UNKNOWN_PLAYER"),
     ],
 )
 def test_an_invalid_event_returns_422_with_the_reason_and_no_delivery(client, delivery, body, code):  # AC-13

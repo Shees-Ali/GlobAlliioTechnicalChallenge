@@ -3,12 +3,6 @@ import pytest
 from fakes import new_id
 
 from notifications.core.notification import Category
-from notifications.core.service import NotificationService
-
-
-@pytest.fixture
-def service(directory, delivery) -> NotificationService:
-    return NotificationService(directory, delivery)
 
 
 def test_item_acquired_notifies_the_player_with_a_readable_item_name(service, delivery):  # AC-2, AC-16

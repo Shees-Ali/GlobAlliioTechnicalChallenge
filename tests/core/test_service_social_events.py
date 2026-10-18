@@ -3,12 +3,6 @@ import pytest
 from fakes import new_id
 
 from notifications.core.notification import Category
-from notifications.core.service import NotificationService
-
-
-@pytest.fixture
-def service(directory, delivery) -> NotificationService:
-    return NotificationService(directory, delivery)
 
 
 def test_friend_request_from_3_to_1_notifies_user_1_about_user_3(service, delivery):  # AC-4

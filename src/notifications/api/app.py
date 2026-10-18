@@ -7,6 +7,7 @@ from notifications.core.errors import ErrorCode, InvalidEventError
 from notifications.core.service import NotificationService
 from notifications.simulated.console_delivery import ConsoleDelivery
 from notifications.simulated.in_memory_directory import InMemoryUserDirectory
+from notifications.simulated.in_memory_processed_events import InMemoryProcessedEvents
 from notifications.simulated.sample_users import SAMPLE_USERS
 
 
@@ -32,7 +33,9 @@ def create_app(service: NotificationService) -> FastAPI:
 
 def build_default_app() -> FastAPI:
     """Wire the simulated dependencies for `uvicorn notifications.api.app:app`."""
-    service = NotificationService(InMemoryUserDirectory(SAMPLE_USERS), ConsoleDelivery())
+    service = NotificationService(
+        InMemoryUserDirectory(SAMPLE_USERS), ConsoleDelivery(), InMemoryProcessedEvents()
+    )
     return create_app(service)
 
 

@@ -4,12 +4,11 @@ from fakes import new_id
 from fastapi.testclient import TestClient
 
 from notifications.api.app import create_app
-from notifications.core.service import NotificationService
 
 
 @pytest.fixture
-def client(directory, delivery) -> TestClient:
-    return TestClient(create_app(NotificationService(directory, delivery)))
+def client(service) -> TestClient:
+    return TestClient(create_app(service))
 
 
 def test_a_valid_event_returns_200_and_delivery_has_already_been_invoked(client, delivery):  # AC-8

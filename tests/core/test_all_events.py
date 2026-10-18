@@ -7,7 +7,6 @@ from fakes import new_id
 from notifications.core.errors import ErrorCode, InvalidEventError
 from notifications.core.events import REGISTRY
 from notifications.core.notification import Category
-from notifications.core.service import NotificationService
 from notifications.core.validation import NonEmptyText
 
 VALID_PAYLOADS = {
@@ -33,11 +32,6 @@ FIELD_CASES = [
     for event_type, definition in sorted(REGISTRY.items())
     for spec in definition.fields
 ]
-
-
-@pytest.fixture
-def service(directory, delivery) -> NotificationService:
-    return NotificationService(directory, delivery)
 
 
 def test_exactly_the_six_required_event_types_are_supported():  # FR-4

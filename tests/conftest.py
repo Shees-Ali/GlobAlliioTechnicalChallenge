@@ -2,6 +2,8 @@ import pytest
 
 from fakes import RecordingDelivery, RecordingDirectory
 from notifications.core.ports import UserRecord
+from notifications.core.service import NotificationService
+from notifications.simulated.in_memory_processed_events import InMemoryProcessedEvents
 
 USERS = [
     UserRecord(1, "Alice", "token-1"),
@@ -19,3 +21,13 @@ def directory() -> RecordingDirectory:
 @pytest.fixture
 def delivery() -> RecordingDelivery:
     return RecordingDelivery()
+
+
+@pytest.fixture
+def processed_events() -> InMemoryProcessedEvents:
+    return InMemoryProcessedEvents()
+
+
+@pytest.fixture
+def service(directory, delivery, processed_events) -> NotificationService:
+    return NotificationService(directory, delivery, processed_events)

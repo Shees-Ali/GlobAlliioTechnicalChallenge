@@ -8,11 +8,6 @@ from notifications.core.service import NotificationService
 LEVEL_UP = {"event_id": new_id(), "type": "level_up", "player_id": 1, "new_level": 15}
 
 
-@pytest.fixture
-def service(directory, delivery) -> NotificationService:
-    return NotificationService(directory, delivery)
-
-
 def test_level_up_delivers_one_game_notification_to_the_player(service, delivery):  # AC-1
     service.handle_event(LEVEL_UP)
 
@@ -43,7 +38,10 @@ def test_a_game_event_looks_up_only_the_recipient(service, directory):  # AC-12
 def test_an_event_with_no_directory_token_is_still_delivered(directory, delivery):  # Q15
     from notifications.core.ports import UserRecord
     from notifications.simulated.in_memory_directory import InMemoryUserDirectory
+    from notifications.simulated.in_memory_processed_events import InMemoryProcessedEvents
 
-    service = NotificationService(InMemoryUserDirectory([UserRecord(1, "Alice", None)]), delivery)
+    service = NotificationService(
+        InMemoryUserDirectory([UserRecord(1, "Alice", None)]), delivery, InMemoryProcessedEvents()
+    )
     service.handle_event(LEVEL_UP)
     assert delivery.calls[0][1] is None

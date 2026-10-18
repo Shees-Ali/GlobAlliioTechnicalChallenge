@@ -3,12 +3,6 @@ import pytest
 from fakes import new_id
 
 from notifications.core.errors import ErrorCode, InvalidEventError
-from notifications.core.service import NotificationService
-
-
-@pytest.fixture
-def service(directory, delivery) -> NotificationService:
-    return NotificationService(directory, delivery)
 
 
 def assert_rejected(service, delivery, payload, code):

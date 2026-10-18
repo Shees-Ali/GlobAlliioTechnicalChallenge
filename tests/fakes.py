@@ -35,3 +35,17 @@ _ids = itertools.count(1)
 def new_id() -> str:
     """A fresh event ID, so each test event is a distinct event."""
     return f"evt-{next(_ids)}"
+
+
+class FlakyDelivery(RecordingDelivery):
+    """Delivery that raises for its first `fail_times` calls, then succeeds."""
+
+    def __init__(self, fail_times: int = 1) -> None:
+        super().__init__()
+        self.remaining_failures = fail_times
+
+    def deliver(self, notification: Notification, token: str | None) -> None:
+        if self.remaining_failures > 0:
+            self.remaining_failures -= 1
+            raise ConnectionError("delivery channel is down")
+        super().deliver(notification, token)

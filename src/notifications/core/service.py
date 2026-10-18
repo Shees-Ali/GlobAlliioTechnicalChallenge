@@ -59,7 +59,12 @@ class NotificationService:
         )
         if not self._processed_events.claim(event.event_id):
             return Outcome.DUPLICATE
-        self._delivery.deliver(notification, recipient.delivery_token)
+        try:
+            self._delivery.deliver(notification, recipient.delivery_token)
+        except BaseException:
+            # A failed delivery must not use up the ID, or the producer's retry would be dropped.
+            self._processed_events.release(event.event_id)
+            raise
         return Outcome.PROCESSED
 
     def _lookup(self, player_id: int) -> UserRecord:

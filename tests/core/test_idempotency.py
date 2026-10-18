@@ -1,8 +1,12 @@
 """The event ID is the idempotency key (FR-19 to FR-25, decision 11)."""
 
+import threading
+import time
+from concurrent.futures import ThreadPoolExecutor
+
 import pytest
 
-from fakes import FlakyDelivery, new_id
+from fakes import FlakyDelivery, RecordingDelivery, new_id
 from notifications.core.errors import InvalidEventError
 from notifications.core.service import NotificationService, Outcome
 
@@ -107,3 +111,64 @@ def test_once_delivered_after_a_failure_the_id_stays_used(directory, processed_e
 
     assert service.handle_event(event) is Outcome.DUPLICATE
     assert len(flaky.calls) == 1
+
+
+# --- concurrency (FR-24) ----------------------------------------------------------
+
+WORKERS = 50
+
+
+class SlowDelivery(RecordingDelivery):
+    """Widens the window in which a second thread could slip through."""
+
+    def deliver(self, notification, token):
+        time.sleep(0.005)
+        super().deliver(notification, token)
+
+
+class RacyProcessedEvents:
+    """A deliberately broken store (check, pause, then set). Used only as a control."""
+
+    def __init__(self) -> None:
+        self._ids: set[str] = set()
+
+    def claim(self, event_id: str) -> bool:
+        if event_id in self._ids:
+            return False
+        time.sleep(0.002)
+        self._ids.add(event_id)
+        return True
+
+    def release(self, event_id: str) -> None:
+        self._ids.discard(event_id)
+
+
+def submit_concurrently(service: NotificationService, event: dict) -> list[Outcome]:
+    barrier = threading.Barrier(WORKERS)
+
+    def attempt() -> Outcome:
+        barrier.wait()
+        return service.handle_event(event)
+
+    with ThreadPoolExecutor(max_workers=WORKERS) as pool:
+        return [f.result() for f in [pool.submit(attempt) for _ in range(WORKERS)]]
+
+
+def test_many_threads_submitting_one_event_cause_exactly_one_delivery(directory, processed_events):  # AC-25
+    delivery = SlowDelivery()
+    service = NotificationService(directory, delivery, processed_events)
+
+    outcomes = submit_concurrently(service, level_up("evt-race"))
+
+    assert len(delivery.calls) == 1
+    assert outcomes.count(Outcome.PROCESSED) == 1
+    assert outcomes.count(Outcome.DUPLICATE) == WORKERS - 1
+
+
+def test_the_concurrency_test_can_catch_a_double_delivery(directory):  # control for AC-25
+    delivery = SlowDelivery()
+    service = NotificationService(directory, delivery, RacyProcessedEvents())
+
+    submit_concurrently(service, level_up("evt-race"))
+
+    assert len(delivery.calls) > 1

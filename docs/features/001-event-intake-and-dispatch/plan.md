@@ -1,10 +1,10 @@
 # Plan: Feature 001 Event intake and dispatch
 
 Implements: [spec.md](spec.md)
-Status: Implemented
+Status: Implemented, amended with idempotency (decision 11 in the log)
 
 ## 1. Summary
-Build a framework-free core with one entry point, `handle_event(payload)`. It validates the raw event, looks up the players in a user directory, builds a `Notification` and calls the delivery dependency once, all synchronously. Each of the six event types is one declarative definition in a registry, so adding an event type means adding one definition. The user directory and the delivery dependency are the two seams, each a small interface with a simulated in-memory implementation. FastAPI is the project framework and sits in a thin `api` adapter that exposes the core over HTTP (`POST /events`). Because the core never imports FastAPI, a WebSocket or broker intake later is another adapter calling the same `handle_event`. This feature also sets up the project baseline (language, layout, test command).
+Build a framework-free core with one entry point, `handle_event(payload)`. It validates the raw event, looks up the players in a user directory, builds a `Notification` and calls the delivery dependency once, all synchronously. Each of the six event types is one declarative definition in a registry, so adding an event type means adding one definition. The user directory and the delivery dependency are the two seams, each a small interface with a simulated in-memory implementation. FastAPI is the project framework and sits in a thin `api` adapter that exposes the core over HTTP (`POST /events`). Because the core never imports FastAPI, a WebSocket or broker intake later is another adapter calling the same `handle_event`. Every event carries an `event_id`, the idempotency key: a third seam, `ProcessedEvents`, lets the service drop duplicates before delivery. This feature also sets up the project baseline (language, layout, test command).
 
 ## 2. Technical context
 - Language and framework: Python 3.12 with FastAPI (owner decision: the module is FastAPI-based so that WebSocket or other intake mechanisms can be added later). The core stays framework-free and FastAPI lives only in the `api` adapter.
@@ -16,7 +16,7 @@ Build a framework-free core with one entry point, `handle_event(payload)`. It va
 ## 3. Constitution check
 - [x] P1 Spec first: every task cites FR and AC IDs from the reviewed spec.
 - [x] P2 Core has no framework dependencies: `core` does not import FastAPI, Starlette or Pydantic. FastAPI is confined to `api/`. An architecture test (`tests/test_architecture.py`) enforces it.
-- [x] P3 Abstractions at seams likely to change: only two interfaces. `UserDirectory` (becomes a real user service) and `NotificationDelivery` (becomes WebSocket delivery). Nothing else is abstracted.
+- [x] P3 Abstractions at seams likely to change: only three interfaces. `UserDirectory` (becomes a real user service), `NotificationDelivery` (becomes WebSocket delivery) and `ProcessedEvents` (becomes a shared store such as Redis or a database, since an in-memory set is lost on restart and not shared across processes). Nothing else is abstracted.
 - [x] P4 Open for extension, closed for modification: a new event type is a new entry in the registry. The service, validation and delivery code do not change.
 - [x] P5 Simplest thing that meets the brief: synchronous, no queue, no persistence, no notification IDs or timestamps (not in the spec).
 - [x] P6 One command to run, one to test: `uvicorn notifications.api.app:app` to run, `pytest` to test, after `pip install -e ".[dev]"`. Recorded under Commands in AGENTS.md.
@@ -35,14 +35,15 @@ src/notifications/
   core/
     errors.py          ErrorCode and InvalidEventError with a reason code
     notification.py    Category enum, Notification (frozen dataclass)
-    ports.py           UserDirectory and NotificationDelivery interfaces, UserRecord
+    ports.py           UserDirectory, NotificationDelivery and ProcessedEvents interfaces, UserRecord
     formatting.py      readable_name("SwordOfAzeroth") -> "Sword Of Azeroth"
-    validation.py      FieldSpec kinds and the payload validator
+    validation.py      FieldSpec kinds, the event_id common field and the payload validator
     events.py          EventDefinition and the registry of six definitions
     service.py         NotificationService.handle_event(payload)
   simulated/
     in_memory_directory.py   dict-backed UserDirectory for tests and the demo
     sample_users.py          four seed players for the running app
+    in_memory_processed_events.py   bounded, lock-protected set of used event IDs
     console_delivery.py      placeholder delivery that logs; replaced by feature 003
   api/
     app.py             FastAPI app factory and POST /events route (thin adapter)
@@ -72,14 +73,15 @@ The entry point takes a plain mapping, as a broker message would arrive. `type` 
 | `friend_accepted` | `accepter_id`, `requester_id` | `requester_id` | `accepter_id` |
 | `new_follower` | `follower_id`, `followed_id` | `followed_id` | `follower_id` |
 
-IDs must be positive integers (not booleans). `new_level` must be a positive integer. Names must be non-blank strings. Extra fields are rejected (see Validation).
+Every payload also carries `event_id` (see Idempotency). IDs must be positive integers (not booleans). `new_level` must be a positive integer. Names must be non-blank strings. Extra fields are rejected (see Validation).
 
 ### Validation (decided: declarative field specs in core)
 Each `EventDefinition` lists `FieldSpec`s (name, kind, optional max length). One validator in `core` checks every payload against its definition, with no third-party library:
 - the payload is a mapping and `type` is a known string (else `UNSUPPORTED_EVENT_TYPE`);
 - every declared field is present (else `MISSING_FIELD`);
 - each value has the strict kind: `PlayerId` is an int above 0 and not a bool, `PositiveInt` likewise, `NonEmptyText` is a non-blank string within the length limit, with no coercion of `"15"` to `15` (else `MALFORMED_FIELD`);
-- no field outside the definition is present (else `MALFORMED_FIELD`).
+- no field outside the definition, `type` and `event_id` is present (else `MALFORMED_FIELD`).
+`event_id` is a common field like `type`, not part of each definition. It must be present (`MISSING_FIELD`) and a non-blank string of at most 128 characters (`MALFORMED_FIELD`). `validate_payload` returns a frozen `ValidatedEvent(event_type, event_id, fields)`.
 The validator lives in `core/validation.py`. Adding an event type adds no validation code.
 
 ### Intake neutrality
@@ -88,10 +90,18 @@ The core knows nothing about how events arrive.
 - `InvalidEventError` carries a reason code and message, never an HTTP status. The `api` adapter maps it to `422`. A WebSocket adapter would map it to an error frame, and a RabbitMQ consumer to a reject or dead-letter, each in its own adapter.
 - Every adapter does the same three things: decode the transport into a mapping, call `handle_event`, translate the result or error back. Adding one needs no change in `core`.
 
+### Idempotency (amendment, decision 11)
+- `ProcessedEvents.claim(event_id) -> bool` returns True if the ID was newly claimed, and is atomic. `release(event_id)` gives it back.
+- The ID is claimed after validation and lookups and just before delivery, so a rejected event never uses its ID (FR-21). If delivery raises, the service releases the ID and re-raises (FR-22).
+- A repeated ID returns `Outcome.DUPLICATE` with no delivery (FR-20). The payload is not compared (FR-23).
+- `InMemoryProcessedEvents(max_entries=10_000)` is an ordered dict under a `threading.Lock`, dropping the oldest ID past capacity (FR-24, FR-25).
+- HTTP maps `Outcome` to `200` with `{"status": "processed"}` or `{"status": "duplicate"}`.
+
 ### Interfaces
 - `UserDirectory.get(player_id) -> UserRecord | None`. `UserRecord` holds `player_id`, `display_name`, `delivery_token`.
 - `NotificationDelivery.deliver(notification, token)`. The contract beyond this signature is feature 003.
-- `NotificationService(directory, delivery)` is built with both and exposes `handle_event(payload)`.
+- `ProcessedEvents.claim(event_id) -> bool` and `release(event_id)`.
+- `NotificationService(directory, delivery, processed_events)` is built with all three and exposes `handle_event(payload) -> Outcome`, where `Outcome` is `PROCESSED` or `DUPLICATE`.
 
 ### Data flow
 ```
@@ -103,7 +113,9 @@ handle_event(payload)
   -> actor = directory.get(actor id) if the type has one   else UNKNOWN_PLAYER
   -> message = definition.build_message(fields, actor name)
   -> notification = Notification(recipient id, category, type, message)
-  -> delivery.deliver(notification, recipient.delivery_token)
+  -> processed_events.claim(event_id)                if already claimed: return DUPLICATE
+  -> delivery.deliver(notification, recipient.delivery_token)   if it raises: release(event_id), re-raise
+  -> return PROCESSED
 ```
 Any failure raises `InvalidEventError(code, message)` before delivery is invoked, so a rejected event never reaches delivery (FR-15). The error is what the submitting component gets back: raised in-process, and a `422` body over HTTP.
 
@@ -124,6 +136,9 @@ It is the baseline, so nothing exists beneath it. Features 002 to 004 add to it:
 | Name formatting | (a) regex splitting before capitals, only when the name has no spaces, (b) lookup table | (a). Matches FR-17 and Q14, about three lines. | Odd names such as acronyms ("XPBoost") split imperfectly. | Recommendation approved by the owner with the plan and tasks |
 | Event field naming | Names in the contract table above, or alternatives | Table above: the role is in the name, so a request and an acceptance cannot be confused. | None significant. | Recommendation approved by the owner with the plan and tasks |
 | Payload validation | (a) declarative `FieldSpec` in core, (b) Pydantic models in core, (c) Pydantic in `api/` only | (a). Own reason codes map onto AC-13, the core stays library-free and every future intake shares the same checks. | About 40 lines of validation code to maintain. | (a) (owner) |
+| Where the event ID work lives | (a) amend 001, (b) new feature 005 | (a). It changes 001's contract, so one place to read it. | Reopens a finished feature, handled by logging the amendment. | (a) (owner) |
+| When the ID is recorded | (a) claim before delivery and release on failure, (b) record after successful delivery | (a). Atomic, so concurrent copies cannot both deliver, and failed deliveries can be retried. | A crash between claim and delivery can lose that one notification. | (a) (owner) |
+| Same ID, different payload | (a) treat as a duplicate, (b) reject as a conflict | (a). Simple, and the ID alone is the key. | A producer bug that reuses an ID is silently ignored. Known limitation. | (a) (owner) |
 | Unknown extra fields | (a) reject, (b) ignore | (a). Stricter, and fits the owner's concern about forged or malicious senders. | A producer that adds a field later is rejected until the definition is updated. | Reject. Approved by owner with the tasks (T5 and T10 test it) |
 
 ## 6. Testing strategy
@@ -142,16 +157,23 @@ All AC tests are unit tests on the core using a recording fake delivery and an i
 | AC-15 | Unknown recipient and unknown actor are rejected, for game and social events. |
 | AC-16 | `SwordOfAzeroth` becomes "Sword Of Azeroth". A name with spaces is unchanged. |
 | AC-17 | The fake delivery receives the recipient's token. |
+| AC-18 | `event_id` rows in the rejection matrix for every event type: missing, wrong type, blank, over 128 characters. |
+| AC-19, AC-21, AC-24 | Service tests with a real in-memory store: same event twice gives one delivery, different IDs both deliver, same ID with a different payload is a duplicate. |
+| AC-22, AC-23 | Rejection does not use the ID, and a delivery that raises releases it, using a failing fake delivery. |
+| AC-25 | Many threads submit one ID, delivery is called once. |
+| AC-26 | Store test: past capacity the oldest ID is dropped. |
+| AC-20 (HTTP) | `TestClient`: the second post returns 200 with `{"status": "duplicate"}`. |
 | AC-8, AC-13 (HTTP) | `TestClient`: a valid `POST /events` returns 200 and the fake delivery has been called. An invalid body returns 422 with the reason code and no delivery call. |
 
 ## 7. Risks and open questions
 No open questions. Resolved during review:
 - R1: the architecture test has no AC number, because it serves P2 and AC-15 is the unknown-player criterion. CLAUDE.md was corrected to name `tests/test_architecture.py`.
 - R2: the event field names in the contract table are approved. If the demo's simulated producers want method-style calls such as `gameEngine.playerLeveledUp(1, 15)`, feature 004 adapts them onto these payloads. No effect on the core.
+- R4: idempotency limits, to go in the README: the store is in memory (IDs lost on restart, not shared across processes), a crash between claim and delivery can lose that notification, a reused ID with different content is silently a duplicate, and a dropped ID can be processed again.
 - R3: a missing `delivery_token` (Q15) is passed through as `None`. Feature 003 defines what delivery does with it.
 
 ## 8. Complexity tracking
 None.
 
 ## 9. Extension notes
-A new event type is a new registry entry plus tests. A new intake (WebSocket, RabbitMQ) is a new adapter beside `api/` that calls `handle_event`. A new channel would be a second `NotificationDelivery`, which is a question for a later feature.
+A new event type is a new registry entry plus tests. A new intake (WebSocket, RabbitMQ) is a new adapter beside `api/` that calls `handle_event`. A new channel would be a second `NotificationDelivery`, which is a question for a later feature. A shared store for event IDs is another `ProcessedEvents` implementation, with no change in `core`. Feature 003 must keep "delivery raises to signal failure", because releasing the ID depends on it. Feature 002 must decide whether a preference-suppressed event uses up its ID (recommended: yes, so a retry after re-enabling does not replay it).

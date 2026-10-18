@@ -1,5 +1,5 @@
 # Feature 001: Event intake and dispatch
-Status: Implemented
+Status: Implemented, amended with FR-19 to FR-25 (idempotency, decision 11 in the log)
 Builds on: baseline
 
 Source: Initial Functional Specification: Gaming Notifications (sections 2, 3, 4, 6 and scenarios 1 to 4).
@@ -11,9 +11,10 @@ This is the core of the notification module. It receives an event from a simulat
 - As a player, I get a notification when I level up, acquire a notable item or complete a challenge, so that I know my progress was recognised.
 - As a player, I get a notification when someone sends me a friend request, accepts mine, or follows me, so that I can respond to social activity.
 - As a game or social backend developer, I submit an event to one entry point and do not need to know how the notification is built or delivered.
+- As a producer that retries after a timeout or a broker redelivery, I resend an event with the same event ID so that the player is never notified twice.
 
 ## Requirements
-Numbering continues across features and is never reused. Feature 001 uses FR-1 to FR-18 (FR-12 to FR-18 were added after owner review, so they sit below FR-11 in the text).
+Numbering continues across features and is never reused. Feature 001 uses FR-1 to FR-25 (FR-12 to FR-25 were added after owner review, so they sit below FR-11 in the text).
 
 **Intake**
 - FR-1: The module exposes an event-handling entry point that simulated game and social components submit events to. The module's responsibility starts when an event is submitted there.
@@ -65,6 +66,15 @@ Numbering continues across features and is never reused. Feature 001 uses FR-1 t
 **Name formatting** (added after owner review, Q12)
 - FR-17: Item and quest or achievement names may arrive in compact form (for example `SwordOfAzeroth`). The message shows them as readable words separated by spaces. A name that already contains spaces is shown unchanged.
 
+**Idempotency** (amendment, decision 11)
+- FR-19: Every event carries an `event_id`, an opaque non-blank string of at most 128 characters chosen by the producer. It is the idempotency key. A missing or malformed `event_id` makes the event invalid under FR-15.
+- FR-20: The first valid event with a given `event_id` is processed normally. A later event with the same `event_id` is not processed again: no notification is created and delivery is not invoked. The submitter is told the event was a duplicate, as a success and not as an error.
+- FR-21: An `event_id` is used up only when the event has passed validation and the player lookups, immediately before delivery. A rejected event does not use up its ID, so a corrected resend with the same ID is accepted.
+- FR-22: If delivery fails, the `event_id` is released, so resubmitting the event with the same ID is processed.
+- FR-23: The `event_id` alone identifies an event. The rest of the payload is not compared, so the same ID with different content is a duplicate.
+- FR-24: Using up an `event_id` is atomic. Concurrent submissions of the same ID cause exactly one delivery.
+- FR-25: Duplicate detection holds for as long as the ID is retained. Retention is bounded, the oldest IDs are dropped past a capacity, and a dropped ID would be processed again.
+
 ## Acceptance criteria
 | ID | Given / When / Then | Covers |
 |---|---|---|
@@ -85,12 +95,23 @@ Numbering continues across features and is never reused. Feature 001 uses FR-1 t
 | AC-15 | Given an event whose recipient ID, or whose acting player ID, is not in the user directory, when it is submitted, then it is rejected as invalid with an error naming the unknown player, and delivery is not invoked. This holds for game events too. | FR-14, FR-15 |
 | AC-16 | Given an Item Acquired event with item `SwordOfAzeroth`, when it is submitted, then the message shows the name as separate words ("Sword Of Azeroth" or equivalent). A name already containing spaces appears unchanged. | FR-17 |
 | AC-17 | Given a valid event whose recipient has a delivery token in the user directory, when it is submitted, then delivery is invoked with that recipient's token along with the notification. | FR-13, FR-18 |
+| AC-18 | Given an event with no `event_id`, or one that is blank, not a string or longer than 128 characters, when it is submitted, then it is rejected with an error naming `event_id` and delivery is not invoked. | FR-19, FR-15 |
+| AC-19 | Given the same event is submitted twice, when both are processed, then delivery is invoked exactly once. | FR-20 |
+| AC-20 | Given a duplicate is submitted, when it is processed, then the submitter gets a duplicate outcome and not an error. Over HTTP this is `200` with `{"status": "duplicate"}`. | FR-20 |
+| AC-21 | Given two events with identical content but different `event_id` values (two real level-ups to the same level), when both are submitted, then both are delivered. | FR-20 |
+| AC-22 | Given an event rejected for an unknown player, when the corrected event is resent with the same `event_id`, then it is delivered. | FR-21 |
+| AC-23 | Given delivery fails for an event, when the same `event_id` is resent, then the first call's error reached the submitter and the resend is delivered. | FR-22 |
+| AC-24 | Given an event was processed, when a different payload arrives with the same `event_id`, then it is treated as a duplicate and not delivered. | FR-23 |
+| AC-25 | Given many threads submit the same event at once, when all finish, then delivery was invoked exactly once. | FR-24 |
+| AC-26 | Given the ID store is at capacity, when a new ID is claimed, then the oldest ID is dropped and a resend of that dropped ID is processed again. | FR-25 |
 
 Preference behavior is out of scope here, so in this feature every processed event reaches delivery. Feature 002 adds the check (AC-5 to AC-8 of the functional spec).
 
 ## Edge cases
 - An event for a recipient with no recorded preferences is processed like any other (no preference check exists in this feature).
-- The same event submitted twice produces two notifications. Duplicate handling is deferred (functional spec section 6).
+- The same event submitted twice produces one notification. The second call returns a duplicate outcome (FR-20). The functional spec deferred duplicate handling to the technical decisions, and this is that decision.
+- A producer that reuses an `event_id` for a different event has that event silently treated as a duplicate (FR-23). Known limitation.
+- The ID store is in memory, bounded, and lost on restart, so after a restart or past its capacity a resent ID is processed again (FR-25). Known limitation, listed in the README at packaging.
 - An event with a missing recipient or missing content detail, or of an unsupported type: rejected with an error (FR-15).
 - Self-targeted social events: rejected (FR-16). Upstream normally prevents them, so this is a defensive check.
 - Unknown player ID, as recipient or as acting player, for any event type: rejected (FR-14).
@@ -106,7 +127,8 @@ Preference behavior is out of scope here, so in this feature every processed eve
 - PvP events (optional in the brief, excluded from initial scope).
 - How the user directory is implemented or populated (a simulated dependency here, shape decided in the plan).
 - Upstream transport, message brokers, WebSocket handling, client rendering.
-- Offline delivery, retries, ordering, duplicate-event handling, latency targets.
+- Offline delivery, delivery retries, ordering, latency targets. (Duplicate-event handling is in scope, FR-19 to FR-25.)
+- A shared or persistent ID store (the in-memory store sits behind an interface so one can replace it).
 - Non-functional requirements (specified later, component by component).
 
 ## Open questions
@@ -124,6 +146,9 @@ None. All questions raised for this feature are resolved. The reasoning is in `d
 | Q13 | Is an event for an unknown player ID processed? | No, it is rejected for every event type. | FR-14 |
 | Q14 | Spaces only, or also lowercase small words? | Spaces only ("Sword Of Azeroth"). | FR-17 |
 | Q15 | Is a player with no delivery token valid? | Yes. What delivery does about it is decided in feature 003. | FR-18, feature 003 |
+| Q16 | Should duplicate events be suppressed, and how does the module recognise one? | Yes. Producers send an `event_id`, which is the idempotency key. The owner called it a critical requirement. | FR-19, FR-20 |
+| Q17 | When is an `event_id` recorded relative to delivery? | Claimed just before delivery, released if delivery fails. Rejected events never claim it. | FR-21, FR-22, FR-24 |
+| Q18 | What if an `event_id` is reused with different content? | Treated as a duplicate. The ID alone is the key. | FR-23 |
 
 ## Traceability
 | ID | Test | Status |
@@ -145,3 +170,12 @@ None. All questions raised for this feature are resolved. The reasoning is in `d
 | AC-15 | `tests/core/test_service_rejections.py::test_an_unknown_recipient_is_rejected_for_game_events`, `..._for_social_events`, `tests/core/test_service_rejections.py::test_an_unknown_acting_player_is_rejected` | Passing |
 | AC-16 | `tests/core/test_formatting.py::test_readable_name`, `tests/core/test_service_game_events.py::test_item_acquired_notifies_the_player_with_a_readable_item_name` | Passing |
 | AC-17 | `tests/core/test_service_level_up.py::test_delivery_receives_the_recipients_token` | Passing |
+| AC-18 | TBD | Not started |
+| AC-19 | TBD | Not started |
+| AC-20 | TBD | Not started |
+| AC-21 | TBD | Not started |
+| AC-22 | TBD | Not started |
+| AC-23 | TBD | Not started |
+| AC-24 | TBD | Not started |
+| AC-25 | TBD | Not started |
+| AC-26 | TBD | Not started |

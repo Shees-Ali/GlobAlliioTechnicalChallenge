@@ -19,6 +19,19 @@ class UserDirectory(Protocol):
 
 
 @runtime_checkable
+class ProcessedEvents(Protocol):
+    """Remembers which event IDs have been used. Seam for a shared store (Redis, a database)."""
+
+    def claim(self, event_id: str) -> bool:
+        """Atomically mark the ID as used. True if it was new, False if already used."""
+        ...
+
+    def release(self, event_id: str) -> None:
+        """Give an ID back so the event can be processed again."""
+        ...
+
+
+@runtime_checkable
 class NotificationDelivery(Protocol):
     """Hands a notification to the in-app channel. Seam for WebSocket delivery.
 

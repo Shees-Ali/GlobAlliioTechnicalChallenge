@@ -26,14 +26,16 @@ Updated whenever a tool is added or used differently.
 |---|---|
 | Claude Code in the VS Code extension, model Claude Sonnet 5.5 | The only AI tool so far. Drafted the specs, plans and tasks, wrote tests and code, ran the suite, and kept the logs. It worked in one long session with the project owner. |
 | `AGENTS.md` and `CLAUDE.md` | Standing instructions the agent reads at session start: spec-first workflow, one file at a time for review, test first, ask before adding dependencies, log the process. |
-| Claude Code's structured question tool | Used when the agent needed an owner decision with options and tradeoffs. First use: the feature split (decision 3). Most other decisions were put as tables in chat or in the plan and answered in free text. |
+| Claude Code's structured question tool | Used when the agent needed an owner decision with options and tradeoffs. Used for the feature split (decision 3) and for the three idempotency decisions (decision 11). Most other decisions were put as tables in chat or in the plan and answered in free text. |
 | File read, write and edit tools; shell | Read the base docs at session start, wrote the docs and code, ran `pytest`, `git`, `curl` and `uvicorn`. |
 | `pytest`, `uvicorn`, `curl`, a Python virtual environment | Verification. `pytest` after every task, and one hand run of the real app with `curl` before closing 001. |
 
-Not used so far, so reviewers are not misled: subagents (the `spec-reviewer` and `test-writer` roles in CLAUDE.md), plan mode, any MCP integration, and any second AI tool. Plan mode was skipped for task 001-T1 even though it touched more than three files, because the reviewed `plan.md` and `tasks.md` already fixed the design. That was a judgment call, not an instruction followed.
+Plan mode was used once, for the event-ID amendment (decision 11), because it changes a `core` interface and touches more than three files, as CLAUDE.md requires. The approved plan was saved and then implemented. It was skipped for task 001-T1 even though that touched more than three files, because the reviewed `plan.md` and `tasks.md` already fixed the design (a judgment call, not an instruction followed).
+
+Not used so far, so reviewers are not misled: subagents (the `spec-reviewer` and `test-writer` roles in CLAUDE.md, and the exploration and planning agents that plan mode offers; the agent explored the code directly because it had written it in the same session), any MCP integration, and any second AI tool.
 
 How the agent was kept honest:
-- Tasks T2 to T9 and T11 each started with a test that was run and seen to fail. Exceptions: T1, whose architecture test passes on an empty `core`, so it was checked by adding a probe import and seeing it fail; and T10, whose tests passed on arrival (decision 7).
+- Tasks T2 to T9 and T11 each started with a test that was run and seen to fail. The same holds for T13 (validator), T14, T15, T16 (delivery failure) and T18; T17's concurrency test passed on arrival, so a control with a deliberately racy store proves it can detect a double delivery. Exceptions in the first round: T1, whose architecture test passes on an empty `core`, so it was checked by adding a probe import and seeing it fail; and T10, whose tests passed on arrival (decision 7).
 - The agent stated its assumptions instead of hiding them. They are listed in decision 6.
 - The owner reviewed each spec and plan before code and changed the agent's draft where it disagreed: names looked up from a user directory instead of carried in the event (4), the delivery token (5), FastAPI instead of the standard library only (6), and `httpx2` instead of `httpx` (8).
 
@@ -104,6 +106,7 @@ The owner's prompts that changed the direction of the work, quoted from the sess
 | 8 | "switch the dev dependency and make sure we are using venv" | Replaced `httpx` with `httpx2`, and the check was done inside `.venv`. |
 | 9 | "The AI process record is strong on decisions but lighter on tool usage and representative prompts ... Add the actual tools used and meaningful prompt examples as the project develops" | Added the Tools used section and this log, and made the rule standing in CLAUDE.md. |
 | 10 | "Once you are done with this clean any pending or stale decisions, from these specs so that you know it is clean and finalized. Up until this point." | Triggered the sweep in decision 10: no pending items remain in the 001 spec, plan or tasks, and the base open-question table shows real statuses. |
+| 11 | "is our event intake pipeline idempotent?" then "Yes, I would like an event ID to the payload because that is the very critical requirement. And log this decision to add an idempotency key which is going to be the event ID. And plan what would change and what files would change and tell me." | Found the intake was not idempotent. Plan mode, three owner decisions, then an amendment to 001. See decision 11. |
 
 Agent prompts worth noting: the CLAUDE.md and AGENTS.md rules ("draft one file at a time", "ask before adding a dependency", "state the task ID and requirement IDs") shaped how the agent responded to every prompt above. Without them the agent would have drafted all four specs at once.
 
@@ -116,3 +119,17 @@ Agent prompts worth noting: the CLAUDE.md and AGENTS.md rules ("draft one file a
 - Changed in the base `docs/spec/spec.md` (edited at the owner's request): the open-question table now has a Status column. Q1 to Q4 are marked decided. Q5 to Q8 stay open, each with the feature that settles it.
 - One thing to be honest about: the owner approved the three assumed items by approving the tasks, not by answering each one. That is recorded as it happened.
 - Left unchanged on purpose: history in decisions 3 to 9 (they describe what was pending at the time), the FR-18 environment assumption that the platform delivers in-app, and the blueprints' own `OPEN` marker guidance.
+
+**11. Event ID as the idempotency key (amendment to 001).**
+- Trigger: the owner asked whether the intake is idempotent. It was not: the same valid event submitted twice produced two notifications and two delivery calls, because payloads had no ID and the module kept no state. This was a documented edge case, deferred by the functional spec (section 6). The owner called an event ID "a very critical requirement".
+- Process: the agent stated what was and was not idempotent (rejections are, valid events were not), offered three options (leave deferred, producer-supplied event ID with a store, dedup in the HTTP adapter only), and recommended the second. The owner chose it and asked for a plan of what would change. The agent used plan mode, asked three questions, and wrote an approved plan before touching any file.
+- Owner decisions: (1) amend 001 rather than create a new feature; (2) claim the ID just before delivery and release it if delivery fails, so concurrent copies cannot both deliver and failed deliveries can be retried; (3) the same ID with different content is treated as a duplicate. The event ID alone is the key.
+- Not asked, decided by the agent and recorded in the plan: the ID is a non-blank string of at most 128 characters; the in-memory store is bounded to 10,000 IDs and drops the oldest; a duplicate returns success (`200` with `{"status": "duplicate"}`), not an error; a rejected event never uses up its ID.
+- Produced: FR-19 to FR-25 and AC-18 to AC-26 in the 001 spec; a third seam `ProcessedEvents` with an in-memory implementation; `handle_event` now returns an `Outcome`; seven tasks (T13 to T19), each a commit. 306 tests pass.
+- Findings from implementing, not from the plan:
+  - The shared `service` fixture replaced five copies of the same fixture in the test modules, because the constructor change would have needed editing all of them.
+  - The AC-22 tests (rejected events do not use up their ID) passed as soon as the claim was placed after validation. Only the delivery-failure tests needed the release code.
+  - The concurrency test (AC-25) passed on arrival because the store's claim is atomic, so a control with a racy store was added to prove the test can fail.
+  - The default app builds its service at import, so wiring the store into it had to happen in T15, earlier than the HTTP change in T18.
+- Hand run under uvicorn: the same level-up twice returned `processed` then `duplicate` with one delivery. A new ID with identical content was delivered. A reused ID with different content returned `duplicate`. A missing or blank `event_id` returned `422`. An unknown-player event followed by its corrected resend with the same ID returned `422` then `processed`. Five deliveries were logged for five distinct processed events.
+- Consequences recorded for later features: feature 003 must keep "delivery raises to signal failure", because releasing the ID depends on it. Feature 002 must decide whether a preference-suppressed event uses up its ID (recommended: yes). The README must list the limits: IDs are lost on restart and not shared across processes, a crash between claim and delivery can lose that notification, a reused ID is silently a duplicate, and a dropped ID can be processed again.

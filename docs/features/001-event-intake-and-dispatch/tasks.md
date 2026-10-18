@@ -22,7 +22,7 @@ Each task starts with the failing test, adds the minimum code to pass, then runs
 - [x] 001-T16 Claim timing. Test first: an event rejected for an unknown player does not use its ID and its corrected resend is delivered, and a delivery that raises releases the ID, reaches the caller, and the resend is delivered. (FR-21, FR-22, AC-22, AC-23)
 - [x] 001-T17 Concurrency at the service level. Test first: many threads submitting one event cause exactly one delivery. (FR-24, AC-25)
 - [x] 001-T18 HTTP outcome. Test first, through `TestClient`: the second identical post returns `200` with `{"status": "duplicate"}` and the first returns `{"status": "processed"}`. The default app wires the in-memory store. (AC-20)
-- [ ] 001-T19 Close the amendment. Run `pytest`, then run `uvicorn` and post the same event twice, an event without an ID, and an unknown-player event followed by its corrected resend. Fill the traceability rows for AC-18 to AC-26, update statuses, and write decision 11 and a prompt-log row to the log. (P7, P9)
+- [x] 001-T19 Close the amendment. Run `pytest`, then run `uvicorn` and post the same event twice, an event without an ID, and an unknown-player event followed by its corrected resend. Fill the traceability rows for AC-18 to AC-26, update statuses, and write decision 11 and a prompt-log row to the log. (P7, P9)
 
 ## Done when
 Every AC in the feature spec has a passing test, the traceability table is filled in, earlier tests still pass, and the decision log has the feature's decisions.

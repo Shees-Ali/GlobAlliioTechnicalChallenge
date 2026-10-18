@@ -170,12 +170,12 @@ None. All questions raised for this feature are resolved. The reasoning is in `d
 | AC-15 | `tests/core/test_service_rejections.py::test_an_unknown_recipient_is_rejected_for_game_events`, `..._for_social_events`, `tests/core/test_service_rejections.py::test_an_unknown_acting_player_is_rejected` | Passing |
 | AC-16 | `tests/core/test_formatting.py::test_readable_name`, `tests/core/test_service_game_events.py::test_item_acquired_notifies_the_player_with_a_readable_item_name` | Passing |
 | AC-17 | `tests/core/test_service_level_up.py::test_delivery_receives_the_recipients_token` | Passing |
-| AC-18 | TBD | Not started |
-| AC-19 | TBD | Not started |
-| AC-20 | TBD | Not started |
-| AC-21 | TBD | Not started |
-| AC-22 | TBD | Not started |
-| AC-23 | TBD | Not started |
-| AC-24 | TBD | Not started |
-| AC-25 | TBD | Not started |
-| AC-26 | TBD | Not started |
+| AC-18 | `tests/core/test_validation.py` (`event_id` cases), `tests/core/test_all_events.py::test_a_missing_event_id_is_rejected`, `tests/core/test_all_events.py::test_a_malformed_event_id_is_rejected`, `tests/api/test_events_route.py::test_an_event_without_an_event_id_returns_422` | Passing |
+| AC-19 | `tests/core/test_idempotency.py::test_the_same_event_submitted_twice_is_delivered_once`, `tests/core/test_idempotency.py::test_a_duplicate_is_ignored_however_often_it_is_resent` | Passing |
+| AC-20 | `tests/core/test_idempotency.py::test_a_duplicate_returns_a_duplicate_outcome_and_not_an_error`, `tests/api/test_events_route.py::test_a_duplicate_event_returns_200_with_a_duplicate_status` | Passing |
+| AC-21 | `tests/core/test_idempotency.py::test_identical_content_with_different_ids_is_delivered_twice`, `tests/api/test_events_route.py::test_the_same_content_with_a_new_event_id_is_delivered_again` | Passing |
+| AC-22 | `tests/core/test_idempotency.py::test_a_rejected_event_does_not_use_up_its_id`, `tests/api/test_events_route.py::test_a_rejected_event_can_be_resent_corrected_with_the_same_id` | Passing |
+| AC-23 | `tests/core/test_idempotency.py::test_a_failed_delivery_releases_the_id_so_the_resend_is_delivered`, `tests/core/test_idempotency.py::test_once_delivered_after_a_failure_the_id_stays_used` | Passing |
+| AC-24 | `tests/core/test_idempotency.py::test_the_same_id_with_different_content_is_a_duplicate` | Passing |
+| AC-25 | `tests/core/test_idempotency.py::test_many_threads_submitting_one_event_cause_exactly_one_delivery` (with a racy-store control), `tests/core/test_in_memory_processed_events.py::test_concurrent_claims_of_one_id_yield_exactly_one_winner` | Passing |
+| AC-26 | `tests/core/test_in_memory_processed_events.py::test_past_capacity_the_oldest_id_is_dropped`, `..._a_repeat_claim_does_not_refresh_the_age_of_an_id` | Passing |

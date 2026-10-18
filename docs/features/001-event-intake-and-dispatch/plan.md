@@ -20,7 +20,7 @@ Build a framework-free core with one entry point, `handle_event(payload)`. It va
 - [x] P4 Open for extension, closed for modification: a new event type is a new entry in the registry. The service, validation and delivery code do not change.
 - [x] P5 Simplest thing that meets the brief: synchronous, no queue, no persistence, no notification IDs or timestamps (not in the spec).
 - [x] P6 One command to run, one to test: `uvicorn notifications.api.app:app` to run, `pytest` to test, after `pip install -e ".[dev]"`. Recorded under Commands in AGENTS.md.
-- [x] P7 Tests prove the spec: section 6 maps all 17 ACs to tests.
+- [x] P7 Tests prove the spec: section 6 maps all 26 ACs to tests.
 - [x] P8 Honest scope: the README limitations list gets "synchronous, in-memory, no retries or dedup" (written at packaging).
 - [x] P9 Process is logged: decisions in section 5 are in `docs/ai-process/README.md` (decisions 6 to 8 and 10).
 - [x] P10 One feature at a time: nothing is built for 002 to 004 beyond the two interfaces this feature itself needs.

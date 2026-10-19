@@ -3,7 +3,7 @@
 Instructions for any AI coding agent working in this repository. Tool-specific files (for example `CLAUDE.md`) import this one.
 
 ## Project
-Globalli take-home: a real-time notification system for a gaming platform. The brief is summarized in `docs/spec/spec.md`. The language, structure and every design choice are decided with the project owner, feature by feature, and recorded in the decision log. Do not assume any of them.
+Globalli take-home: a real-time notification system for a gaming platform. The brief is summarized in `docs/spec/spec.md`. The owner's functional spec, which features trace to, is `docs/functional-spec.md`. The language, structure and every design choice are decided with the project owner, feature by feature, and recorded in the decision log. Do not assume any of them.
 
 ## How this project is built
 Spec-driven, in a minimal Spec Kit style, in layers. The owner makes the key decisions; the agent proposes options and tradeoffs and records what was decided.

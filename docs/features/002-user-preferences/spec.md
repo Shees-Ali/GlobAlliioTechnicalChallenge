@@ -2,7 +2,7 @@
 Status: Draft
 Builds on: 001 (event intake and dispatch)
 
-Source: the brief ("enable or disable per category, representable by a simple map") and the Initial Functional Specification, acceptance scenarios 5 to 8 (mapped to this feature in decision 3). The functional spec text is not in the repo, so the owner is asked to confirm this spec against it (Q19).
+Source: the brief ("enable or disable per category, representable by a simple map") and the Initial Functional Specification (`docs/functional-spec.md`), section 5 and acceptance scenarios 5 to 8 (mapped to this feature in decision 3).
 
 ## Purpose
 A player can turn notifications off for a whole category, Game Events or Social Events, and back on again. The module checks the recipient's preference before delivery, so a disabled category is never delivered. The check sits between the checks 001 already does and the delivery call, and changes nothing else about how an event is handled.
@@ -18,7 +18,7 @@ Numbering continues from 001 (FR-1 to FR-25).
 
 **Preferences**
 - FR-26: Each player has an on or off setting for each category (Game Events, Social Events). A player's preferences can be represented as a simple map from category to on or off.
-- FR-27: The setting for one category does not affect any other category.
+- FR-27: The setting for one category does not affect any other category, and one player's settings do not affect any other player.
 - FR-28: A category with no recorded setting is on. A player with no recorded preferences receives every category. This includes a category added to the module later.
 
 **Checking**
@@ -33,6 +33,7 @@ Numbering continues from 001 (FR-1 to FR-25).
 - FR-33: A player's setting can be changed per category, to on or off. The change applies to every event submitted after the change returns. Changing one category leaves the others as they were.
 - FR-34: A change is rejected with an error naming the reason if the player ID is not in the user directory, the category is not one the module supports, or the value is not on or off. A rejected change leaves preferences unchanged.
 - FR-35: Preferences can be changed over HTTP, through an adapter that holds no rules, in the same way events are submitted over HTTP in 001. The route's shape is decided in the plan.
+- FR-36: Turning a category back on does not replay notifications suppressed while it was off. They are never delivered. (Added after checking against functional spec scenario 8, Q19.)
 
 ## Acceptance criteria
 | ID | Given / When / Then | Covers |
@@ -40,21 +41,23 @@ Numbering continues from 001 (FR-1 to FR-25).
 | AC-27 | Given player 1 has turned Game Events off, when a Level Up for player 1 is submitted, then delivery is not invoked and the outcome is suppressed. | FR-26, FR-29 |
 | AC-28 | Given player 1 has turned Game Events off, when a Friend Request to player 1 is submitted, then it is delivered. | FR-27 |
 | AC-29 | Given player 1 has no recorded preferences, when one event of each of the six types is submitted for player 1 as recipient, then all six are delivered. | FR-28 |
-| AC-30 | Given player 1 has turned Game Events off, when a Level Up for player 2 (no preferences) is submitted, then it is delivered. | FR-26 |
+| AC-30 | Given player 1 has turned Game Events off, when a Level Up for player 2 (no preferences) is submitted, then it is delivered. | FR-26, FR-27 |
 | AC-31 | Given user 3 has turned Social Events off and user 1 has not, when user 3 sends user 1 a friend request, then user 1 is notified. | FR-30 |
 | AC-32 | Given a suppressed event, when it is submitted over HTTP, then the response is `200` with `{"status": "suppressed"}`. | FR-29, FR-35 |
 | AC-33 | Given player 1 has Game Events off, when an invalid Level Up for player 1 (for example with the new level missing) is submitted, then it is rejected with an error, not suppressed. Same for a Friend Request to player 1 from an unknown player when player 1 has Social Events off. | FR-31 |
 | AC-34 | Given a Level Up for player 1 was suppressed, when player 1 turns Game Events on and the same event is resent with the same `event_id`, then the outcome is duplicate and delivery is not invoked. | FR-32 |
-| AC-35 | Given a Level Up was suppressed, when a new Level Up with a different `event_id` is submitted after player 1 turns Game Events on, then it is delivered. | FR-33 |
+| AC-35 | Given a Level Up for player 1 was suppressed, when player 1 turns Game Events on, then delivery is not invoked for the suppressed event; and when a new Level Up with a different `event_id` is then submitted, delivery is invoked exactly once, for the new event only. | FR-33, FR-36 |
 | AC-36 | Given player 1 has Game Events off, when player 1 turns Social Events off and then on, then Game Events is still off. | FR-27, FR-33 |
 | AC-37 | Given a preference change for an unknown player, an unsupported category, or a value that is not on or off, when it is submitted, then it is rejected with an error naming the reason and no player's preferences change. | FR-34 |
 | AC-38 | Given the running app, when Game Events is turned off for player 1 over HTTP and a Level Up for player 1 is then posted to `/events`, then the response is suppressed and delivery is not invoked. | FR-33, FR-35 |
+
+Functional spec scenarios covered: 5 (AC-27), 6 (AC-28, AC-30), 7 (AC-29), 8 (AC-35, AC-36).
 
 ## Edge cases
 - Turning off a category that is already off, or on when already on, succeeds and changes nothing.
 - A duplicate takes precedence over the preference check. Resending an ID already used returns duplicate, whether the first event was delivered or suppressed (FR-32).
 - A preference change made while an event for the same player is being handled may or may not apply to that event. It applies to every event submitted after the change returns (FR-33).
-- A suppressed notification is dropped, not queued. Enabling the category later does not deliver it.
+- A suppressed notification is dropped, not queued. Enabling the category later does not deliver it (FR-36).
 - Preferences are held in memory and lost on restart, after which every player is back to all categories on (FR-28). Known limitation, listed in the README at packaging.
 - Anyone who can reach the HTTP route can change any player's preferences. There is no authentication. Known limitation of the mock.
 
@@ -69,9 +72,9 @@ Numbering continues from 001 (FR-1 to FR-25).
 ## Open questions
 | # | Question | Agent recommendation | Status |
 |---|---|---|---|
-| Q5 | Is per-category the only granularity? (base open question) | Yes. The brief says "simplified" and names categories, and the functional spec says per category. | Open |
-| Q19 | Does this spec match functional spec scenarios 5 to 8? The agent has not seen them. | Owner to check, or paste them so the agent can. | Open |
-| Q20 | Should there also be a way to read a player's preferences over HTTP? | Not in this feature. It is not needed to prove the ACs, and 004 can add it if the demo needs it. | Open |
+| Q5 | Is per-category the only granularity? (base open question) | Yes. The brief says "simplified" and names categories. | Decided (owner): per category only. FR-26. |
+| Q19 | Does this spec match functional spec scenarios 5 to 8? | The owner supplied the functional spec, now at `docs/functional-spec.md`. | Decided: scenarios 5 to 7 were covered. Scenario 8's "without replaying" was only an edge case, so FR-36 was added and AC-35 widened. FR-27 now names other players too. |
+| Q20 | Should there also be a way to read a player's preferences over HTTP? | Not in this feature. It is not needed to prove the ACs, and 004 can add it if the demo needs it. | Decided (owner): not in 002. |
 
 Decided before drafting (owner, structured question tool), moved to the decision log when the spec is approved:
 - Missing setting is on (FR-28).

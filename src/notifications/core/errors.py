@@ -8,6 +8,7 @@ class ErrorCode(str, Enum):
     SELF_TARGETED = "SELF_TARGETED"
     UNKNOWN_PLAYER = "UNKNOWN_PLAYER"
     UNSUPPORTED_CATEGORY = "UNSUPPORTED_CATEGORY"
+    DELIVERY_FAILED = "DELIVERY_FAILED"
 
 
 class InvalidEventError(Exception):
@@ -25,4 +26,13 @@ class InvalidPreferenceError(Exception):
     def __init__(self, code: ErrorCode, message: str):
         super().__init__(message)
         self.code = code
+        self.message = message
+
+
+class DeliveryError(Exception):
+    """The in-app channel could not take the notification. A retry may succeed."""
+
+    def __init__(self, message: str):
+        super().__init__(message)
+        self.code = ErrorCode.DELIVERY_FAILED
         self.message = message

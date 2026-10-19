@@ -3,18 +3,18 @@
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 
-from notifications.core.errors import ErrorCode, InvalidEventError, InvalidPreferenceError
+from notifications.core.errors import DeliveryError, ErrorCode, InvalidEventError, InvalidPreferenceError
 from notifications.core.preferences import PreferenceService
 from notifications.core.service import NotificationService
-from notifications.simulated.console_delivery import ConsoleDelivery
+from notifications.simulated.in_app_channel import InAppChannel
 from notifications.simulated.in_memory_directory import InMemoryUserDirectory
 from notifications.simulated.in_memory_preferences import InMemoryPreferenceStore
 from notifications.simulated.in_memory_processed_events import InMemoryProcessedEvents
-from notifications.simulated.sample_users import SAMPLE_USERS
+from notifications.simulated.sample_users import SAMPLE_USERS, UNREACHABLE_TOKENS
 
 
-def _rejected(error: InvalidEventError | InvalidPreferenceError) -> JSONResponse:
-    return JSONResponse(status_code=422, content={"code": error.code.value, "message": error.message})
+def _rejected(error: InvalidEventError | InvalidPreferenceError | DeliveryError, status: int = 422) -> JSONResponse:
+    return JSONResponse(status_code=status, content={"code": error.code.value, "message": error.message})
 
 
 async def _json_body(request: Request, error_type: type[Exception]) -> object:
@@ -33,6 +33,8 @@ def create_app(service: NotificationService, preference_service: PreferenceServi
             outcome = service.handle_event(await _json_body(request, InvalidEventError))
         except InvalidEventError as error:
             return _rejected(error)
+        except DeliveryError as error:
+            return _rejected(error, status=503)  # the channel is unavailable, a retry may succeed
         return JSONResponse(content={"status": outcome.value})
 
     @app.put("/preferences")
@@ -50,8 +52,11 @@ def build_default_app() -> FastAPI:
     """Wire the simulated dependencies for `uvicorn notifications.api.app:app`."""
     directory = InMemoryUserDirectory(SAMPLE_USERS)
     preferences = InMemoryPreferenceStore()  # shared, so a change applies to the next event
-    service = NotificationService(directory, ConsoleDelivery(), InMemoryProcessedEvents(), preferences)
-    return create_app(service, PreferenceService(directory, preferences))
+    channel = InAppChannel(unreachable_tokens=UNREACHABLE_TOKENS)
+    service = NotificationService(directory, channel, InMemoryProcessedEvents(), preferences)
+    app = create_app(service, PreferenceService(directory, preferences))
+    app.state.channel = channel  # lets tests and the demo see what each client would have received
+    return app
 
 
 app = build_default_app()

@@ -43,4 +43,5 @@ def test_error_codes():
         "SELF_TARGETED",
         "UNKNOWN_PLAYER",
         "UNSUPPORTED_CATEGORY",  # added in 002 for preference changes
+        "DELIVERY_FAILED",  # added in 003
     }

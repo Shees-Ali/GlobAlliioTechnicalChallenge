@@ -48,7 +48,9 @@ class PreferenceStore(Protocol):
 class NotificationDelivery(Protocol):
     """Hands a notification to the in-app channel. Seam for WebSocket delivery.
 
-    The contract beyond this signature (failures, missing token) is feature 003.
+    The token is never missing or blank: core answers those events as undeliverable.
+    Failure is signalled by raising DeliveryError. Returning means the notification was
+    handed to the channel, not that the player received or read it.
     """
 
-    def deliver(self, notification: Notification, token: str | None) -> None: ...
+    def deliver(self, notification: Notification, token: str) -> None: ...

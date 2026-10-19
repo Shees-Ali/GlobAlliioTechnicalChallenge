@@ -11,9 +11,9 @@ class RecordingDelivery:
     """Stands in for the in-app delivery dependency and remembers every call."""
 
     def __init__(self) -> None:
-        self.calls: list[tuple[Notification, str | None]] = []
+        self.calls: list[tuple[Notification, str]] = []
 
-    def deliver(self, notification: Notification, token: str | None) -> None:
+    def deliver(self, notification: Notification, token: str) -> None:
         self.calls.append((notification, token))
 
 
@@ -44,7 +44,7 @@ class FlakyDelivery(RecordingDelivery):
         super().__init__()
         self.remaining_failures = fail_times
 
-    def deliver(self, notification: Notification, token: str | None) -> None:
+    def deliver(self, notification: Notification, token: str) -> None:
         if self.remaining_failures > 0:
             self.remaining_failures -= 1
             raise ConnectionError("delivery channel is down")

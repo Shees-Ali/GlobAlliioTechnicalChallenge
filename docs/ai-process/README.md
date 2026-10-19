@@ -111,6 +111,11 @@ The owner's prompts that changed the direction of the work, quoted from the sess
 | 13 | "This is the functional spec, store it in docs to reference for future sessions and close the scenarios questions." | Saved the functional spec to `docs/functional-spec.md`. Checking it against the draft found the "no replay" gap, which became FR-36. See decision 13. |
 | 14 | "let's plan out and clear the questions." | The agent drafted the 002 plan and put its four main design choices to the owner, who took all four recommendations. See decision 14. |
 | 15 | "implement but do not commit I will review first" | All seven tasks implemented with failing tests first, nothing committed. Plan mode was used for T2. See decision 15. |
+| 16 | "merge the changes back into main I have commited then then we will move to the 3rd feature" | 001 and 002 merged into `main` as two merge commits. Started 003 with four delivery questions. See decision 16. |
+| 17 | "yes a blank token will count as no token, yes for now keep it at 100, and in a constant variable, yes for Q23 as well" | Closed Q21 to Q23. Added FR-46, FR-47 and AC-49 to AC-51. See decision 17. |
+| 18 | "Does this mean that when a undelivered request is sent again it won't be delivered to the user? we need to make sure that we sent it", then "Nevermind the undelivered should consume event id based on the assumption that the notification history is mainatined, otherwise once the user gets the token they will get a lot of popups aat once since they are in game notifcations" | The owner challenged FR-41, weighed three options and kept it, adding the reason and the history assumption to the spec. See decision 18. |
+| 19 | "draft the plan" | Spec taken as approved. Draft 003 plan with six decisions pending. See decision 19. |
+| 20 | "Implement" | All six 003 tasks implemented test first, nothing committed. Plan mode for T2. Probes showed the tests that passed on arrival can fail. See decision 20. |
 
 Agent prompts worth noting: the CLAUDE.md and AGENTS.md rules ("draft one file at a time", "ask before adding a dependency", "state the task ID and requirement IDs") shaped how the agent responded to every prompt above. Without them the agent would have drafted all four specs at once.
 
@@ -173,3 +178,46 @@ Agent prompts worth noting: the CLAUDE.md and AGENTS.md rules ("draft one file a
   - The JSON-decoding step in the HTTP adapter is now shared by both routes.
 - Hand run under uvicorn: Level Up processed; Game off; Level Up suppressed; Friend Request to the same player processed; Level Up for player 2 processed; Game on; resend of the suppressed ID duplicate; new Level Up processed; unsupported category and unknown player both 422; an invalid event with Game off 422, not suppressed. The console delivery logged exactly four deliveries, and the suppressed event was never delivered.
 - For the README at packaging: preferences are in memory and lost on restart, and `PUT /preferences` has no authentication.
+
+## Feature 003: In-app delivery
+
+**16. Merge to main, four owner decisions before the 003 spec.**
+- Prompt: "merge the changes back into main I have commited then then we will move to the 3rd feature" (quoted in the Prompt log).
+- Merge: 001 had never been merged into `main`, so the agent merged the 001 branch and then the 002 branch, each with `--no-ff`, giving `main` one merge commit per feature. The suite passed on `main` (362 tests). Nothing was pushed. Branch `feature/003-in-app-delivery` was cut from `main`.
+- Found while preparing 003: a delivery failure today reaches an HTTP producer as a bare `500`, which does not say whether a retry can help.
+- Owner decisions (all four recommendations accepted, structured question tool): (1) a recipient with no token gets a new `undeliverable` outcome, a success, and the ID is used up (settles Q15); (2) the simulated channel is an in-memory record per token, with live push left to 004 (settles the mechanism half of Q7); (3) one delivery attempt and the producer retries, with no internal retries or queue (settles the guarantee half of Q7); (4) a delivery failure over HTTP is `503` with `DELIVERY_FAILED`.
+- Produced: draft `docs/features/003-in-app-delivery/spec.md` with FR-37 to FR-45 and AC-39 to AC-48, and open questions Q21 (blank token), Q22 (bounded channel) and Q23 (a way to make the simulated channel fail on purpose for the demo).
+- Agent choice put in the spec for review, not asked: the preference check comes before the token check, so an event the player turned off is suppressed whether or not they have a token (FR-42).
+
+**17. 003 open questions closed.**
+- Prompt quoted in the Prompt log. All three agent recommendations were accepted, and the owner added one detail: the per-token limit of 100 is held in a named constant.
+- Q21: a blank token counts as no token (FR-40 widened, AC-49).
+- Q22: the simulated channel keeps the 100 most recent notifications per token and drops the oldest (FR-46, AC-50).
+- Q23: the simulated channel can be built with unreachable tokens that raise a delivery error, so the `503` path can be shown by hand and in the demo (FR-47, AC-51).
+
+**18. FR-41 challenged and kept (Q24).**
+- The owner questioned FR-41: an undeliverable event uses up its ID, so a resend after the player gets a token is a duplicate and never delivered.
+- The agent confirmed that reading and admitted the flaw in its own reasoning: it had treated "no token" like "category turned off", although the player did not choose to miss it. It offered (a) release the ID so the producer can resend, (b) hold undelivered notifications and send them when the player connects, (c) keep FR-41.
+- Owner decision: (c). In-app notifications are in-game popups, so sending a backlog on connect would hit the player with many popups at once. The platform is assumed to keep a notification history the player can look back through, so nothing is lost.
+- Produced: FR-41 now states the reason, the history assumption is listed under "Not in this feature", and Q24 records the question.
+
+**19. 003 plan drafted.**
+- Prompt: "draft the plan". Taken as approval of the spec, which is marked reviewed.
+- Produced: draft `docs/features/003-in-app-delivery/plan.md`. Six decisions are left Pending for the owner: no-token check in core, `str`-only token in the delivery contract, a typed `DeliveryError` (other exceptions stay `500`), two new sample users (5 with no token, 6 unreachable), removing `ConsoleDelivery`, and the limit constant in the channel module.
+- Found while planning: 001's Q15 test asserts that delivery receives `None` for a player with no token. 003 changes that on purpose, so the test will be rewritten to expect `UNDELIVERABLE` (R7).
+- Owner decisions on the plan (structured question tool, all recommendations accepted): "no token" is decided in core and the delivery contract takes a `str` token only; only a typed `DeliveryError` becomes `503`, other exceptions stay `500`; players 5 (no token) and 6 (unreachable token) are added to the sample users; tests reach the default app's channel through `app.state.channel`, and a read route stays with 004.
+- The owner then approved the last two: `ConsoleDelivery` is removed and the channel does the logging, and `MAX_NOTIFICATIONS_PER_TOKEN = 100` lives in the channel's module. Plan marked reviewed. Produced: `tasks.md` with six test-first tasks. T2 changes the `NotificationDelivery` signature, so it is marked to run in plan mode first.
+
+**20. Feature 003 implemented, left uncommitted for owner review.**
+- Prompt: "Implement". Following the owner's standing preference from 002, nothing was committed.
+- Plan mode was used for T2, because it changed the `NotificationDelivery` signature (a `core` interface) and touched more than three files. The owner approved the short plan first.
+- Result: 385 passing tests (362 before 003). All thirteen ACs (AC-39 to AC-51) are traced to tests in the spec.
+- Test-first record: T1, T2, T4 and T5 started with failing tests. The AC-43 test (suppressed beats undeliverable) passed on arrival, because the preference check already came first. In T4, the `undeliverable` answer and the `500` for other exceptions also passed on arrival, as the plan expected (no new code for either).
+- All four T3 tests passed on arrival, as the tasks file predicted. To show they can still fail, the agent made two temporary deliberate breaks in `service.py`, working from a backup copy: releasing the ID on undeliverable (caught by the AC-42 test) and not releasing it on failure (caught by the AC-44 test). The file was restored and checked for leftovers. This is the same idea as the racy-store control in 001, done without keeping the broken code.
+- Findings from implementing, not from the plan:
+  - The service passes the token on unchanged, not a stripped copy, so a channel gets exactly what the directory holds. The blank check only decides whether to deliver.
+  - 001's Q15 test was renamed and now expects `UNDELIVERABLE` (planned as R7). `test_error_codes` gained `DELIVERY_FAILED`. These are the only changed expectations in earlier tests.
+  - `git rm` staged the removal of `console_delivery.py`. It was unstaged so that every change sits unstaged for the owner's review.
+- Hand run under uvicorn: player 1 processed and logged by the channel; player 5 (no token) undeliverable; player 6 (unreachable) `503 DELIVERY_FAILED`, and its resend `503` again, which shows the ID was released; player 5's resend duplicate; Game off for player 5, then a new event suppressed; a Friend Request to player 5 undeliverable; one from player 5 to player 1 processed. The channel logged exactly two deliveries, both to player 1.
+- For the README at packaging: the channel is in memory, keeps 100 notifications per token, and simulates unreachable tokens; the notification history is assumed to live outside the module.
+- Base open questions Q5 and Q7, and 001's Q15, were settled in 002 and 003 but still showed as open. `docs/spec/spec.md` is a base file, so the agent asked before editing it. The owner said "Yes mark them as decided": Q5 and Q7 are now decided in the base table, and Q15's row in the 001 spec points to 003 FR-40 and FR-41. Q15 was never in the base table, because it was raised inside 001.

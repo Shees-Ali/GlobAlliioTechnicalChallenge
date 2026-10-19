@@ -87,9 +87,9 @@ def test_a_rejected_event_does_not_use_up_its_id(service, delivery, bad_payload)
     assert len(delivery.calls) == 1
 
 
-def test_a_failed_delivery_releases_the_id_so_the_resend_is_delivered(directory, processed_events):  # AC-23
+def test_a_failed_delivery_releases_the_id_so_the_resend_is_delivered(directory, processed_events, preferences):  # AC-23
     flaky = FlakyDelivery(fail_times=1)
-    service = NotificationService(directory, flaky, processed_events)
+    service = NotificationService(directory, flaky, processed_events, preferences)
     event = level_up("evt-flaky")
 
     with pytest.raises(ConnectionError):
@@ -100,9 +100,9 @@ def test_a_failed_delivery_releases_the_id_so_the_resend_is_delivered(directory,
     assert len(flaky.calls) == 1
 
 
-def test_once_delivered_after_a_failure_the_id_stays_used(directory, processed_events):  # AC-23, AC-19
+def test_once_delivered_after_a_failure_the_id_stays_used(directory, processed_events, preferences):  # AC-23, AC-19
     flaky = FlakyDelivery(fail_times=1)
-    service = NotificationService(directory, flaky, processed_events)
+    service = NotificationService(directory, flaky, processed_events, preferences)
     event = level_up("evt-flaky")
 
     with pytest.raises(ConnectionError):
@@ -154,9 +154,9 @@ def submit_concurrently(service: NotificationService, event: dict) -> list[Outco
         return [f.result() for f in [pool.submit(attempt) for _ in range(WORKERS)]]
 
 
-def test_many_threads_submitting_one_event_cause_exactly_one_delivery(directory, processed_events):  # AC-25
+def test_many_threads_submitting_one_event_cause_exactly_one_delivery(directory, processed_events, preferences):  # AC-25
     delivery = SlowDelivery()
-    service = NotificationService(directory, delivery, processed_events)
+    service = NotificationService(directory, delivery, processed_events, preferences)
 
     outcomes = submit_concurrently(service, level_up("evt-race"))
 
@@ -165,9 +165,9 @@ def test_many_threads_submitting_one_event_cause_exactly_one_delivery(directory,
     assert outcomes.count(Outcome.DUPLICATE) == WORKERS - 1
 
 
-def test_the_concurrency_test_can_catch_a_double_delivery(directory):  # control for AC-25
+def test_the_concurrency_test_can_catch_a_double_delivery(directory, preferences):  # control for AC-25
     delivery = SlowDelivery()
-    service = NotificationService(directory, delivery, RacyProcessedEvents())
+    service = NotificationService(directory, delivery, RacyProcessedEvents(), preferences)
 
     submit_concurrently(service, level_up("evt-race"))
 

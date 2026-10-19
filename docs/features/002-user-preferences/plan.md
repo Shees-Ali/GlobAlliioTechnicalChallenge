@@ -1,7 +1,7 @@
 # Plan: Feature 002 User preferences
 
 Implements: [spec.md](spec.md)
-Status: Reviewed by owner
+Status: Implemented, awaiting owner review before commit
 
 ## 1. Summary
 Add a fourth seam, `PreferenceStore`, that holds each player's recorded category settings as a simple map, with an in-memory implementation. `handle_event` checks the recipient's setting after it claims the event ID and before it builds the notification, and returns a new `Outcome.SUPPRESSED` when the category is off. A small `PreferenceService` in `core` validates and applies changes from a raw mapping, the same way `handle_event` takes a raw event, and a thin `PUT /preferences` route exposes it over HTTP. The default-on rule lives in `core`, so no store has to reimplement it.

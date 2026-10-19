@@ -1,5 +1,5 @@
 # Feature 002: User preferences
-Status: Reviewed by owner
+Status: Implemented, awaiting owner review before commit
 Builds on: 001 (event intake and dispatch)
 
 Source: the brief ("enable or disable per category, representable by a simple map") and the Initial Functional Specification (`docs/functional-spec.md`), section 5 and acceptance scenarios 5 to 8 (mapped to this feature in decision 3).
@@ -85,4 +85,15 @@ Decided before drafting (owner, structured question tool), moved to the decision
 ## Traceability
 | ID | Test | Status |
 |---|---|---|
-| AC-27 to AC-38 | Filled in at close | Not started |
+| AC-27 | `tests/core/test_service_preferences.py::test_a_disabled_category_is_suppressed_and_not_delivered`, `tests/core/test_service_preferences.py::test_every_type_in_a_disabled_category_is_suppressed` | Passing |
+| AC-28 | `tests/core/test_service_preferences.py::test_a_disabled_category_does_not_affect_the_other_category` | Passing |
+| AC-29 | `tests/core/test_service_preferences.py::test_with_no_recorded_preferences_every_event_type_is_delivered`, `tests/core/test_in_memory_preferences.py::test_every_category_is_on_when_nothing_is_recorded` | Passing |
+| AC-30 | `tests/core/test_service_preferences.py::test_one_players_setting_does_not_affect_another_player` | Passing |
+| AC-31 | `tests/core/test_service_preferences.py::test_only_the_recipients_preferences_are_checked` | Passing |
+| AC-32 | `tests/api/test_preferences_route.py::test_a_suppressed_event_returns_200_with_a_suppressed_status` | Passing |
+| AC-33 | `tests/core/test_service_preferences.py::test_an_invalid_event_is_rejected_not_suppressed`, `tests/core/test_service_preferences.py::test_an_unknown_actor_is_rejected_not_suppressed` | Passing |
+| AC-34 | `tests/core/test_service_preferences.py::test_a_suppressed_event_uses_up_its_id` (plus `tests/core/test_service_preferences.py::test_a_failed_preference_read_releases_the_id` for FR-22) | Passing |
+| AC-35 | `tests/core/test_preferences.py::test_turning_a_category_back_on_does_not_replay_and_delivers_only_new_events` | Passing |
+| AC-36 | `tests/core/test_preferences.py::test_changing_one_category_leaves_the_other_as_it_was` | Passing |
+| AC-37 | `tests/core/test_preferences.py::test_a_bad_change_is_rejected_and_changes_nothing`, `tests/api/test_preferences_route.py::test_a_rejected_change_returns_422_with_its_code` | Passing |
+| AC-38 | `tests/api/test_preferences_route.py::test_a_change_over_http_applies_to_the_next_posted_event`, `tests/api/test_preferences_route.py::test_the_default_app_shares_one_store_between_both_services` | Passing |

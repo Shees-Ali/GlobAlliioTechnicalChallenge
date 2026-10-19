@@ -110,6 +110,7 @@ The owner's prompts that changed the direction of the work, quoted from the sess
 | 12 | "Let's move on to feature 002." | Started 002. The agent asked four preference questions before drafting, and the owner took all four recommendations. See decision 12. |
 | 13 | "This is the functional spec, store it in docs to reference for future sessions and close the scenarios questions." | Saved the functional spec to `docs/functional-spec.md`. Checking it against the draft found the "no replay" gap, which became FR-36. See decision 13. |
 | 14 | "let's plan out and clear the questions." | The agent drafted the 002 plan and put its four main design choices to the owner, who took all four recommendations. See decision 14. |
+| 15 | "implement but do not commit I will review first" | All seven tasks implemented with failing tests first, nothing committed. Plan mode was used for T2. See decision 15. |
 
 Agent prompts worth noting: the CLAUDE.md and AGENTS.md rules ("draft one file at a time", "ask before adding a dependency", "state the task ID and requirement IDs") shaped how the agent responded to every prompt above. Without them the agent would have drafted all four specs at once.
 
@@ -159,3 +160,16 @@ Agent prompts worth noting: the CLAUDE.md and AGENTS.md rules ("draft one file a
 - Owner decisions (all recommendations accepted): (1) a new `PreferenceStore` seam rather than a field on `UserRecord` or a dict in the service; (2) a separate `PreferenceService` in core that validates a raw mapping, so the route holds no rules; (3) `PUT /preferences` with player, category and value in the JSON body, chosen over a RESTful path because FastAPI would otherwise parse the path ID and return its own error format; (4) a new `InvalidPreferenceError` beside `InvalidEventError`.
 - Found while planning, not in the spec: once the preference read sits after the event-ID claim, a failing store would use up the ID without delivering. The plan widens the release-on-failure `try` to cover everything after the claim, and adds a test for it.
 - Then approved by the owner: the store returns only the recorded map and core applies the default ("yes as by default all notifications would be on"), and the store is a required constructor argument. Spec and plan marked reviewed. Produced: `tasks.md` with seven test-first tasks (T1 to T7). T2 changes the `NotificationService` constructor, so it is marked to run in plan mode first.
+
+**15. Feature 002 implemented, left uncommitted for owner review.**
+- Prompt: "implement but do not commit I will review first" (quoted in the Prompt log). This overrides the CLAUDE.md habit of one commit per task, so all of T1 to T7 sit in the working tree.
+- Plan mode was used for T2, as CLAUDE.md requires, because it changed the `NotificationService` constructor (a `core` interface) and touched more than three files. The owner approved the short plan before any edit.
+- Result: 362 passing tests (306 before 002). All twelve ACs (AC-27 to AC-38) are traced to tests in the spec.
+- Test-first record: T1, T2, T3, T5 and T6 each started with a test run and seen to fail. In T4, the AC-34 test passed on arrival because T3 already claimed the ID before the check, as the tasks file predicted. The failing-store test was the one seen to fail, and it drove the code change.
+- Findings from implementing, not from the plan:
+  - The release-on-failure `try` now covers the preference read and the building of the notification as well as delivery, so a failing store gives the ID back.
+  - The notification is now built after the preference check, matching the functional spec's flow (check preferences, then create the notification), so a suppressed event never builds a message.
+  - One 001 test, `test_error_codes` in `tests/core/test_notification.py`, lists the exact set of error codes, so it was updated to add `UNSUPPORTED_CATEGORY`. This is the only edit to a 001 test's expectations.
+  - The JSON-decoding step in the HTTP adapter is now shared by both routes.
+- Hand run under uvicorn: Level Up processed; Game off; Level Up suppressed; Friend Request to the same player processed; Level Up for player 2 processed; Game on; resend of the suppressed ID duplicate; new Level Up processed; unsupported category and unknown player both 422; an invalid event with Game off 422, not suppressed. The console delivery logged exactly four deliveries, and the suppressed event was never delivered.
+- For the README at packaging: preferences are in memory and lost on restart, and `PUT /preferences` has no authentication.

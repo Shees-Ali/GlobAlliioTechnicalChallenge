@@ -7,8 +7,8 @@ from notifications.api.app import create_app
 
 
 @pytest.fixture
-def client(service) -> TestClient:
-    return TestClient(create_app(service))
+def client(service, preference_service) -> TestClient:
+    return TestClient(create_app(service, preference_service))
 
 
 def test_a_valid_event_returns_200_and_delivery_has_already_been_invoked(client, delivery):  # AC-8

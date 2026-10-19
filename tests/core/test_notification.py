@@ -42,4 +42,5 @@ def test_error_codes():
         "MALFORMED_FIELD",
         "SELF_TARGETED",
         "UNKNOWN_PLAYER",
+        "UNSUPPORTED_CATEGORY",  # added in 002 for preference changes
     }

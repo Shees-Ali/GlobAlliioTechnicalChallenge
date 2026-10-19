@@ -5,13 +5,21 @@ from typing import Any
 from notifications.core.errors import ErrorCode, InvalidEventError
 from notifications.core.events import REGISTRY, EventDefinition
 from notifications.core.notification import Notification
-from notifications.core.ports import NotificationDelivery, ProcessedEvents, UserDirectory, UserRecord
+from notifications.core.ports import (
+    NotificationDelivery,
+    PreferenceStore,
+    ProcessedEvents,
+    UserDirectory,
+    UserRecord,
+)
+from notifications.core.preferences import is_enabled
 from notifications.core.validation import validate_payload
 
 
 class Outcome(str, Enum):
     PROCESSED = "processed"
     DUPLICATE = "duplicate"  # same event_id already processed, nothing was delivered
+    SUPPRESSED = "suppressed"  # valid, but the recipient has the category off, nothing was delivered
 
 
 class NotificationService:
@@ -22,18 +30,21 @@ class NotificationService:
         directory: UserDirectory,
         delivery: NotificationDelivery,
         processed_events: ProcessedEvents,
+        preferences: PreferenceStore,
         registry: Mapping[str, EventDefinition] = REGISTRY,
     ) -> None:
         self._directory = directory
         self._delivery = delivery
         self._processed_events = processed_events
+        self._preferences = preferences
         self._registry = registry
 
     def handle_event(self, payload: Any) -> Outcome:
         """Process one event synchronously.
 
         Raises InvalidEventError if it is rejected. A repeat of an already processed
-        event_id returns Outcome.DUPLICATE and delivers nothing.
+        event_id returns Outcome.DUPLICATE and delivers nothing. An event whose category
+        the recipient has turned off returns Outcome.SUPPRESSED and delivers nothing.
         """
         specs = {name: d.fields for name, d in self._registry.items()}
         event = validate_payload(payload, specs)
@@ -51,18 +62,22 @@ class NotificationService:
         if definition.actor_field is not None:
             actor_name = self._lookup(fields[definition.actor_field]).display_name
 
-        notification = Notification(
-            recipient_id=recipient.player_id,
-            category=definition.category,
-            event_type=event_type,
-            message=definition.build_message(fields, actor_name),
-        )
         if not self._processed_events.claim(event.event_id):
             return Outcome.DUPLICATE
         try:
+            # Checked after the claim, so a suppressed event uses up its ID and is never replayed.
+            if not is_enabled(self._preferences, recipient.player_id, definition.category):
+                return Outcome.SUPPRESSED
+            notification = Notification(
+                recipient_id=recipient.player_id,
+                category=definition.category,
+                event_type=event_type,
+                message=definition.build_message(fields, actor_name),
+            )
             self._delivery.deliver(notification, recipient.delivery_token)
         except BaseException:
-            # A failed delivery must not use up the ID, or the producer's retry would be dropped.
+            # Any failure after the claim (preference read or delivery) must not use up the ID,
+            # or the producer's retry would be dropped.
             self._processed_events.release(event.event_id)
             raise
         return Outcome.PROCESSED

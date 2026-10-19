@@ -1,7 +1,8 @@
+from collections.abc import Mapping
 from dataclasses import dataclass
 from typing import Protocol, runtime_checkable
 
-from notifications.core.notification import Notification
+from notifications.core.notification import Category, Notification
 
 
 @dataclass(frozen=True)
@@ -29,6 +30,18 @@ class ProcessedEvents(Protocol):
     def release(self, event_id: str) -> None:
         """Give an ID back so the event can be processed again."""
         ...
+
+
+@runtime_checkable
+class PreferenceStore(Protocol):
+    """Holds each player's recorded category settings. Seam for a persistent, shared store.
+
+    It returns only what was recorded. The default for anything missing is a rule in core.
+    """
+
+    def get(self, player_id: int) -> Mapping[Category, bool]: ...
+
+    def set(self, player_id: int, category: Category, enabled: bool) -> None: ...
 
 
 @runtime_checkable

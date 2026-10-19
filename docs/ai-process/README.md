@@ -107,6 +107,10 @@ The owner's prompts that changed the direction of the work, quoted from the sess
 | 9 | "The AI process record is strong on decisions but lighter on tool usage and representative prompts ... Add the actual tools used and meaningful prompt examples as the project develops" | Added the Tools used section and this log, and made the rule standing in CLAUDE.md. |
 | 10 | "Once you are done with this clean any pending or stale decisions, from these specs so that you know it is clean and finalized. Up until this point." | Triggered the sweep in decision 10: no pending items remain in the 001 spec, plan or tasks, and the base open-question table shows real statuses. |
 | 11 | "is our event intake pipeline idempotent?" then "Yes, I would like an event ID to the payload because that is the very critical requirement. And log this decision to add an idempotency key which is going to be the event ID. And plan what would change and what files would change and tell me." | Found the intake was not idempotent. Plan mode, three owner decisions, then an amendment to 001. See decision 11. |
+| 12 | "Let's move on to feature 002." | Started 002. The agent asked four preference questions before drafting, and the owner took all four recommendations. See decision 12. |
+| 13 | "This is the functional spec, store it in docs to reference for future sessions and close the scenarios questions." | Saved the functional spec to `docs/functional-spec.md`. Checking it against the draft found the "no replay" gap, which became FR-36. See decision 13. |
+| 14 | "let's plan out and clear the questions." | The agent drafted the 002 plan and put its four main design choices to the owner, who took all four recommendations. See decision 14. |
+| 15 | "implement but do not commit I will review first" | All seven tasks implemented with failing tests first, nothing committed. Plan mode was used for T2. See decision 15. |
 
 Agent prompts worth noting: the CLAUDE.md and AGENTS.md rules ("draft one file at a time", "ask before adding a dependency", "state the task ID and requirement IDs") shaped how the agent responded to every prompt above. Without them the agent would have drafted all four specs at once.
 
@@ -133,3 +137,39 @@ Agent prompts worth noting: the CLAUDE.md and AGENTS.md rules ("draft one file a
   - The default app builds its service at import, so wiring the store into it had to happen in T15, earlier than the HTTP change in T18.
 - Hand run under uvicorn: the same level-up twice returned `processed` then `duplicate` with one delivery. A new ID with identical content was delivered. A reused ID with different content returned `duplicate`. A missing or blank `event_id` returned `422`. An unknown-player event followed by its corrected resend with the same ID returned `422` then `processed`. Five deliveries were logged for five distinct processed events.
 - Consequences recorded for later features: feature 003 must keep "delivery raises to signal failure", because releasing the ID depends on it. Feature 002 must decide whether a preference-suppressed event uses up its ID (recommended: yes). The README must list the limits: IDs are lost on restart and not shared across processes, a crash between claim and delivery can lose that notification, a reused ID is silently a duplicate, and a dropped ID can be processed again.
+
+## Feature 002: User preferences
+
+**12. Four owner decisions before the 002 spec was drafted.**
+- Prompt: "Let's move on to feature 002." (quoted in the Prompt log).
+- Process: the agent read the 001 spec, the service code and the decision log first. It found that the functional spec is not in the repo, so it could not see scenarios 5 to 8. Rather than draft and then rewrite, it asked four questions with the structured question tool, each with options and a recommendation.
+- Owner decisions (all four recommendations accepted): (1) a missing setting is on, so a new player gets everything; (2) a suppressed event returns a new `suppressed` outcome as a success, like `duplicate`; (3) a suppressed event uses up its `event_id`, which settles the consequence left open in decision 11; (4) preferences change through a core call plus a thin HTTP route.
+- Tradeoffs named to the owner: a `suppressed` status tells the producer about the player's preference (a mild information leak), and opt-out by default means a player must act to stop notifications.
+- Produced: draft `docs/features/002-user-preferences/spec.md` with FR-26 to FR-35 and AC-27 to AC-38. FR-32 refines the wording of FR-21 in 001 (an ID is used up whether the event is delivered or suppressed). Open questions Q5 (granularity), Q19 (match against functional spec scenarios 5 to 8) and Q20 (reading preferences over HTTP).
+
+**13. Functional spec saved to the repo, 002 open questions closed.**
+- Prompt: "let's plan out and clear the questions", then, after the agent asked how to check scenarios 5 to 8, the owner asked which scenarios were meant, and then pasted the functional spec (quoted in the Prompt log).
+- Found: the functional spec given in the 001 session was never saved to the repo, so the 002 draft cited scenarios the agent could not see. The agent said so rather than guess, offered a reconstruction, and the owner pasted the original. It is now kept verbatim at `docs/functional-spec.md`, and `AGENTS.md` points to it.
+- Owner decisions: Q5, per category only. Q20, no read route in 002.
+- Decision from reviewing against the source, not from the first draft: scenarios 5 to 7 were already covered, but scenario 8 ("without replaying suppressed events") was only an edge case with no requirement or test. FR-36 was added and AC-35 widened to prove it. FR-27 now also says one player's settings do not affect another, matching section 5 of the functional spec. The spec now lists which AC covers each scenario.
+- Noted, not changed: the functional spec's example message says "legendary Sword of Azeroth". The module still does not say "legendary", because it does not know rarity (decision 7, FR-3).
+
+**14. 002 plan drafted, four design decisions.**
+- Prompt: "let's plan out and clear the questions" (quoted in the Prompt log).
+- Produced: draft `docs/features/002-user-preferences/plan.md`, with the options table put to the owner through the structured question tool.
+- Owner decisions (all recommendations accepted): (1) a new `PreferenceStore` seam rather than a field on `UserRecord` or a dict in the service; (2) a separate `PreferenceService` in core that validates a raw mapping, so the route holds no rules; (3) `PUT /preferences` with player, category and value in the JSON body, chosen over a RESTful path because FastAPI would otherwise parse the path ID and return its own error format; (4) a new `InvalidPreferenceError` beside `InvalidEventError`.
+- Found while planning, not in the spec: once the preference read sits after the event-ID claim, a failing store would use up the ID without delivering. The plan widens the release-on-failure `try` to cover everything after the claim, and adds a test for it.
+- Then approved by the owner: the store returns only the recorded map and core applies the default ("yes as by default all notifications would be on"), and the store is a required constructor argument. Spec and plan marked reviewed. Produced: `tasks.md` with seven test-first tasks (T1 to T7). T2 changes the `NotificationService` constructor, so it is marked to run in plan mode first.
+
+**15. Feature 002 implemented, left uncommitted for owner review.**
+- Prompt: "implement but do not commit I will review first" (quoted in the Prompt log). This overrides the CLAUDE.md habit of one commit per task, so all of T1 to T7 sit in the working tree.
+- Plan mode was used for T2, as CLAUDE.md requires, because it changed the `NotificationService` constructor (a `core` interface) and touched more than three files. The owner approved the short plan before any edit.
+- Result: 362 passing tests (306 before 002). All twelve ACs (AC-27 to AC-38) are traced to tests in the spec.
+- Test-first record: T1, T2, T3, T5 and T6 each started with a test run and seen to fail. In T4, the AC-34 test passed on arrival because T3 already claimed the ID before the check, as the tasks file predicted. The failing-store test was the one seen to fail, and it drove the code change.
+- Findings from implementing, not from the plan:
+  - The release-on-failure `try` now covers the preference read and the building of the notification as well as delivery, so a failing store gives the ID back.
+  - The notification is now built after the preference check, matching the functional spec's flow (check preferences, then create the notification), so a suppressed event never builds a message.
+  - One 001 test, `test_error_codes` in `tests/core/test_notification.py`, lists the exact set of error codes, so it was updated to add `UNSUPPORTED_CATEGORY`. This is the only edit to a 001 test's expectations.
+  - The JSON-decoding step in the HTTP adapter is now shared by both routes.
+- Hand run under uvicorn: Level Up processed; Game off; Level Up suppressed; Friend Request to the same player processed; Level Up for player 2 processed; Game on; resend of the suppressed ID duplicate; new Level Up processed; unsupported category and unknown player both 422; an invalid event with Game off 422, not suppressed. The console delivery logged exactly four deliveries, and the suppressed event was never delivered.
+- For the README at packaging: preferences are in memory and lost on restart, and `PUT /preferences` has no authentication.

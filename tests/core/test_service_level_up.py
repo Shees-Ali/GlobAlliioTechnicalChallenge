@@ -3,7 +3,7 @@ import pytest
 from fakes import new_id
 
 from notifications.core.notification import Category
-from notifications.core.service import NotificationService
+from notifications.core.service import NotificationService, Outcome
 
 LEVEL_UP = {"event_id": new_id(), "type": "level_up", "player_id": 1, "new_level": 15}
 
@@ -35,7 +35,7 @@ def test_a_game_event_looks_up_only_the_recipient(service, directory):  # AC-12
     assert directory.lookups == [1]
 
 
-def test_an_event_with_no_directory_token_is_still_delivered(directory, delivery):  # Q15
+def test_an_event_with_no_directory_token_is_undeliverable(directory, delivery):  # Q15, settled in 003 (AC-41)
     from notifications.core.ports import UserRecord
     from notifications.simulated.in_memory_directory import InMemoryUserDirectory
     from notifications.simulated.in_memory_preferences import InMemoryPreferenceStore
@@ -47,5 +47,5 @@ def test_an_event_with_no_directory_token_is_still_delivered(directory, delivery
         InMemoryProcessedEvents(),
         InMemoryPreferenceStore(),
     )
-    service.handle_event(LEVEL_UP)
-    assert delivery.calls[0][1] is None
+    assert service.handle_event(LEVEL_UP) is Outcome.UNDELIVERABLE
+    assert delivery.calls == []

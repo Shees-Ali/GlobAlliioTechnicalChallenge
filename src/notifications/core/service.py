@@ -20,6 +20,7 @@ class Outcome(str, Enum):
     PROCESSED = "processed"
     DUPLICATE = "duplicate"  # same event_id already processed, nothing was delivered
     SUPPRESSED = "suppressed"  # valid, but the recipient has the category off, nothing was delivered
+    UNDELIVERABLE = "undeliverable"  # valid, but the recipient has no in-app channel, nothing was delivered
 
 
 class NotificationService:
@@ -44,7 +45,8 @@ class NotificationService:
 
         Raises InvalidEventError if it is rejected. A repeat of an already processed
         event_id returns Outcome.DUPLICATE and delivers nothing. An event whose category
-        the recipient has turned off returns Outcome.SUPPRESSED and delivers nothing.
+        the recipient has turned off returns Outcome.SUPPRESSED, and one for a recipient
+        with no delivery token returns Outcome.UNDELIVERABLE. Neither delivers anything.
         """
         specs = {name: d.fields for name, d in self._registry.items()}
         event = validate_payload(payload, specs)
@@ -68,13 +70,17 @@ class NotificationService:
             # Checked after the claim, so a suppressed event uses up its ID and is never replayed.
             if not is_enabled(self._preferences, recipient.player_id, definition.category):
                 return Outcome.SUPPRESSED
+            # No channel to deliver to. The ID stays used: replaying later would flood the player.
+            token = recipient.delivery_token
+            if token is None or not token.strip():
+                return Outcome.UNDELIVERABLE
             notification = Notification(
                 recipient_id=recipient.player_id,
                 category=definition.category,
                 event_type=event_type,
                 message=definition.build_message(fields, actor_name),
             )
-            self._delivery.deliver(notification, recipient.delivery_token)
+            self._delivery.deliver(notification, token)
         except BaseException:
             # Any failure after the claim (preference read or delivery) must not use up the ID,
             # or the producer's retry would be dropped.

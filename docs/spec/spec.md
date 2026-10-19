@@ -38,9 +38,9 @@ Each is answered with the owner during the feature where it matters, then moved 
 | Q2 | Language and shape: Python, Node, or both; one app or API plus separate frontend? | owner | first feature | Language decided in 001: Python with FastAPI, one app. Whether the demo is a separate frontend is settled in feature 004. |
 | Q3 | Who is notified for `friendRequestAccepted(1, 3)`? | ambiguity in the brief | social events feature | Decided: the original requester (functional spec, FR-6 in 001). |
 | Q4 | What counts as a "rare or valuable" item? | ambiguity in the brief | game events feature | Decided: the producer decides, the module notifies every item it receives (FR-3 in 001). |
-| Q5 | Preference granularity beyond category? | brief says simplified | preferences feature | Open. Functional spec says per category, Game and Social. Confirm in 002. |
+| Q5 | Preference granularity beyond category? | brief says simplified | preferences feature | Decided in 002: per category only, Game and Social, on unless turned off (FR-26 to FR-28). |
 | Q6 | Include PvP events? | brief says optional | after required scope | Open. Excluded from the initial scope by the functional spec. |
-| Q7 | Real-time mechanism and delivery guarantee | brief says assume a mechanism exists | delivery feature | Open. Intake is transport neutral (001). Delivery semantics are settled in 003. |
+| Q7 | Real-time mechanism and delivery guarantee | brief says assume a mechanism exists | delivery feature | Decided in 003: a simulated in-app channel records per token, live push is left to 004; one delivery attempt, the producer retries, and a failure is `503 DELIVERY_FAILED` (FR-37 to FR-47). Intake is transport neutral (001). |
 | Q8 | Persistence and scale limits to state in the README | not covered by brief | packaging | Open. Settled at packaging. |
 
 Questions raised inside a feature (numbered Q9 onward) live in that feature's `spec.md` and are all resolved for 001.

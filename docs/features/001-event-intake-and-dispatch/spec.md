@@ -145,7 +145,7 @@ None. All questions raised for this feature are resolved. The reasoning is in `d
 | Q12 | How are item names shown? | As separate words. | FR-17 |
 | Q13 | Is an event for an unknown player ID processed? | No, it is rejected for every event type. | FR-14 |
 | Q14 | Spaces only, or also lowercase small words? | Spaces only ("Sword Of Azeroth"). | FR-17 |
-| Q15 | Is a player with no delivery token valid? | Yes. What delivery does about it is decided in feature 003. | FR-18, feature 003 |
+| Q15 | Is a player with no delivery token valid? | Yes. Settled in 003: the event is answered `undeliverable`, delivery is not invoked, and the ID is used up. | FR-18, 003 FR-40 and FR-41 |
 | Q16 | Should duplicate events be suppressed, and how does the module recognise one? | Yes. Producers send an `event_id`, which is the idempotency key. The owner called it a critical requirement. | FR-19, FR-20 |
 | Q17 | When is an `event_id` recorded relative to delivery? | Claimed just before delivery, released if delivery fails. Rejected events never claim it. | FR-21, FR-22, FR-24 |
 | Q18 | What if an `event_id` is reused with different content? | Treated as a duplicate. The ID alone is the key. | FR-23 |

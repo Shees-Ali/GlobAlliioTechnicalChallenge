@@ -9,7 +9,7 @@ Features are chosen one at a time with the project owner. Add a row when one is 
 |---|---|---|---|
 | 1 | Event intake and dispatch | `docs/features/001-event-intake-and-dispatch/` | Implemented, amended with event-ID idempotency (decision 11) |
 | 2 | User preferences | `docs/features/002-user-preferences/` | Implemented, awaiting owner review before commit |
-| 3 | In-app delivery | `docs/features/003-in-app-delivery/` | Picked, spec not started |
+| 3 | In-app delivery | `docs/features/003-in-app-delivery/` | Implemented, awaiting owner review before commit |
 | 4 | Demonstration | `docs/features/004-demonstration/` | Picked, spec not started |
 
 ## Delivery checklist (from the brief)

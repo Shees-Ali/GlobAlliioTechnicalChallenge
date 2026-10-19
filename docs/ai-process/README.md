@@ -107,6 +107,7 @@ The owner's prompts that changed the direction of the work, quoted from the sess
 | 9 | "The AI process record is strong on decisions but lighter on tool usage and representative prompts ... Add the actual tools used and meaningful prompt examples as the project develops" | Added the Tools used section and this log, and made the rule standing in CLAUDE.md. |
 | 10 | "Once you are done with this clean any pending or stale decisions, from these specs so that you know it is clean and finalized. Up until this point." | Triggered the sweep in decision 10: no pending items remain in the 001 spec, plan or tasks, and the base open-question table shows real statuses. |
 | 11 | "is our event intake pipeline idempotent?" then "Yes, I would like an event ID to the payload because that is the very critical requirement. And log this decision to add an idempotency key which is going to be the event ID. And plan what would change and what files would change and tell me." | Found the intake was not idempotent. Plan mode, three owner decisions, then an amendment to 001. See decision 11. |
+| 12 | "Let's move on to feature 002." | Started 002. The agent asked four preference questions before drafting, and the owner took all four recommendations. See decision 12. |
 
 Agent prompts worth noting: the CLAUDE.md and AGENTS.md rules ("draft one file at a time", "ask before adding a dependency", "state the task ID and requirement IDs") shaped how the agent responded to every prompt above. Without them the agent would have drafted all four specs at once.
 
@@ -133,3 +134,12 @@ Agent prompts worth noting: the CLAUDE.md and AGENTS.md rules ("draft one file a
   - The default app builds its service at import, so wiring the store into it had to happen in T15, earlier than the HTTP change in T18.
 - Hand run under uvicorn: the same level-up twice returned `processed` then `duplicate` with one delivery. A new ID with identical content was delivered. A reused ID with different content returned `duplicate`. A missing or blank `event_id` returned `422`. An unknown-player event followed by its corrected resend with the same ID returned `422` then `processed`. Five deliveries were logged for five distinct processed events.
 - Consequences recorded for later features: feature 003 must keep "delivery raises to signal failure", because releasing the ID depends on it. Feature 002 must decide whether a preference-suppressed event uses up its ID (recommended: yes). The README must list the limits: IDs are lost on restart and not shared across processes, a crash between claim and delivery can lose that notification, a reused ID is silently a duplicate, and a dropped ID can be processed again.
+
+## Feature 002: User preferences
+
+**12. Four owner decisions before the 002 spec was drafted.**
+- Prompt: "Let's move on to feature 002." (quoted in the Prompt log).
+- Process: the agent read the 001 spec, the service code and the decision log first. It found that the functional spec is not in the repo, so it could not see scenarios 5 to 8. Rather than draft and then rewrite, it asked four questions with the structured question tool, each with options and a recommendation.
+- Owner decisions (all four recommendations accepted): (1) a missing setting is on, so a new player gets everything; (2) a suppressed event returns a new `suppressed` outcome as a success, like `duplicate`; (3) a suppressed event uses up its `event_id`, which settles the consequence left open in decision 11; (4) preferences change through a core call plus a thin HTTP route.
+- Tradeoffs named to the owner: a `suppressed` status tells the producer about the player's preference (a mild information leak), and opt-out by default means a player must act to stop notifications.
+- Produced: draft `docs/features/002-user-preferences/spec.md` with FR-26 to FR-35 and AC-27 to AC-38. FR-32 refines the wording of FR-21 in 001 (an ID is used up whether the event is delivered or suppressed). Open questions Q5 (granularity), Q19 (match against functional spec scenarios 5 to 8) and Q20 (reading preferences over HTTP).

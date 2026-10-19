@@ -109,6 +109,7 @@ The owner's prompts that changed the direction of the work, quoted from the sess
 | 11 | "is our event intake pipeline idempotent?" then "Yes, I would like an event ID to the payload because that is the very critical requirement. And log this decision to add an idempotency key which is going to be the event ID. And plan what would change and what files would change and tell me." | Found the intake was not idempotent. Plan mode, three owner decisions, then an amendment to 001. See decision 11. |
 | 12 | "Let's move on to feature 002." | Started 002. The agent asked four preference questions before drafting, and the owner took all four recommendations. See decision 12. |
 | 13 | "This is the functional spec, store it in docs to reference for future sessions and close the scenarios questions." | Saved the functional spec to `docs/functional-spec.md`. Checking it against the draft found the "no replay" gap, which became FR-36. See decision 13. |
+| 14 | "let's plan out and clear the questions." | The agent drafted the 002 plan and put its four main design choices to the owner, who took all four recommendations. See decision 14. |
 
 Agent prompts worth noting: the CLAUDE.md and AGENTS.md rules ("draft one file at a time", "ask before adding a dependency", "state the task ID and requirement IDs") shaped how the agent responded to every prompt above. Without them the agent would have drafted all four specs at once.
 
@@ -151,3 +152,10 @@ Agent prompts worth noting: the CLAUDE.md and AGENTS.md rules ("draft one file a
 - Owner decisions: Q5, per category only. Q20, no read route in 002.
 - Decision from reviewing against the source, not from the first draft: scenarios 5 to 7 were already covered, but scenario 8 ("without replaying suppressed events") was only an edge case with no requirement or test. FR-36 was added and AC-35 widened to prove it. FR-27 now also says one player's settings do not affect another, matching section 5 of the functional spec. The spec now lists which AC covers each scenario.
 - Noted, not changed: the functional spec's example message says "legendary Sword of Azeroth". The module still does not say "legendary", because it does not know rarity (decision 7, FR-3).
+
+**14. 002 plan drafted, four design decisions.**
+- Prompt: "let's plan out and clear the questions" (quoted in the Prompt log).
+- Produced: draft `docs/features/002-user-preferences/plan.md`, with the options table put to the owner through the structured question tool.
+- Owner decisions (all recommendations accepted): (1) a new `PreferenceStore` seam rather than a field on `UserRecord` or a dict in the service; (2) a separate `PreferenceService` in core that validates a raw mapping, so the route holds no rules; (3) `PUT /preferences` with player, category and value in the JSON body, chosen over a RESTful path because FastAPI would otherwise parse the path ID and return its own error format; (4) a new `InvalidPreferenceError` beside `InvalidEventError`.
+- Found while planning, not in the spec: once the preference read sits after the event-ID claim, a failing store would use up the ID without delivering. The plan widens the release-on-failure `try` to cover everything after the claim, and adds a test for it.
+- Left for owner review in the plan: whether the store returns the recorded map with the default applied in core, and whether the store is a required constructor argument.

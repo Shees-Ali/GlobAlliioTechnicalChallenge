@@ -1,7 +1,7 @@
 # Plan: Feature 002 User preferences
 
 Implements: [spec.md](spec.md)
-Status: Draft
+Status: Reviewed by owner
 
 ## 1. Summary
 Add a fourth seam, `PreferenceStore`, that holds each player's recorded category settings as a simple map, with an in-memory implementation. `handle_event` checks the recipient's setting after it claims the event ID and before it builds the notification, and returns a new `Outcome.SUPPRESSED` when the category is off. A small `PreferenceService` in `core` validates and applies changes from a raw mapping, the same way `handle_event` takes a raw event, and a thin `PUT /preferences` route exposes it over HTTP. The default-on rule lives in `core`, so no store has to reimplement it.
@@ -94,12 +94,12 @@ It builds on 001's service, directory and event-ID store. 003 is untouched: deli
 | Decision | Options considered | Recommendation and why | Tradeoff accepted | Owner decision |
 |---|---|---|---|---|
 | Where preferences are stored | (a) new `PreferenceStore` seam, (b) a field on `UserRecord` in the directory, (c) a plain dict passed to the service | (a). Preferences are written at runtime, while the directory is a read-only stand-in for the user service. A real platform would likely keep settings in their own table or service. | A fourth interface. | (a) (owner) |
-| Store shape and where the default lives | (a) store returns the recorded map, core applies default on, (b) store answers `is_enabled` and applies the default itself | (a). It matches "a simple map" in the brief, and the default (FR-28) is a rule, so it belongs in core, written once. A database store then cannot get it wrong. | Callers go through `is_enabled`, not the store directly. | Pending |
+| Store shape and where the default lives | (a) store returns the recorded map, core applies default on, (b) store answers `is_enabled` and applies the default itself | (a). It matches "a simple map" in the brief, and the default (FR-28) is a rule, so it belongs in core, written once. A database store then cannot get it wrong. | Callers go through `is_enabled`, not the store directly. | (a) (owner): "by default all notifications would be on" |
 | Where change rules live | (a) separate `PreferenceService` in core taking a raw mapping, (b) a method on `NotificationService`, (c) the route validates and core takes typed values | (a). The route stays rule-free (FR-35), any future adapter shares the checks, and `NotificationService` keeps one job. | Two services to wire in the app. | (a) (owner) |
 | Route shape | (a) `PUT /preferences` with player, category and value in the JSON body, (b) `PUT /players/{id}/preferences/{category}` with `{"enabled": false}`, (c) `PATCH /players/{id}/preferences` with a partial map | (a). All input is raw JSON that core validates, with the same error shape as `/events`. In (b), FastAPI parses the path, so a bad ID gets FastAPI's error format, or the adapter has to convert it (a rule in the adapter). (c) changes several categories at once, which FR-33 does not need. | Less RESTful URL. Easy to defend: it mirrors `POST /events`. | (a) (owner) |
 | Error type for rejected changes | (a) new `InvalidPreferenceError` beside `InvalidEventError`, sharing `ErrorCode`, (b) reuse `InvalidEventError`, (c) rename to a shared base | (a). The names stay accurate and nothing in 001 changes. The adapter catches both. | Two near-identical classes. A shared base can come later if a third appears. | (a) (owner) |
 | Order of the check and the claim | (a) claim, then check, (b) check, then claim | (a). Required by FR-32 and the duplicate-wins edge case. Listed so the reason is visible, not a real choice. | none | Follows from the spec |
-| Constructor change | (a) store is a required argument, (b) optional, defaulting to "all on" | (a). Explicit wiring, and core would otherwise need a default store, which belongs in `simulated/`. | Five test call sites and the app change. | Pending |
+| Constructor change | (a) store is a required argument, (b) optional, defaulting to "all on" | (a). Explicit wiring, and core would otherwise need a default store, which belongs in `simulated/`. | Five test call sites and the app change. | (a) (owner) |
 
 ## 6. Testing strategy
 

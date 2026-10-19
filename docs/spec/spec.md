@@ -29,19 +29,21 @@ This file holds two things: the facts that come from the brief, and the template
 - AI use is encouraged. The prompts and the process are part of the deliverable.
 - Follow-up interview: (1) the AI process, (2) defending the architecture, tradeoffs, hypothetical extensions, and how the system works.
 
-## 2. Open questions (not decided)
+## 2. Open questions and their status
 Each is answered with the owner during the feature where it matters, then moved to the decision log.
 
-| # | Question | Raised by | Settle in |
-|---|---|---|---|
-| Q1 | The brief says a `Notification` class is provided but none was attached. Wait for the recruiter's reply, or define our own? | brief gap, email sent to the recruiter | first feature |
-| Q2 | Language and shape: Python, Node, or both; one app or API plus separate frontend? | owner | first feature |
-| Q3 | Who is notified for `friendRequestAccepted(1, 3)`? | ambiguity in the brief | social events feature |
-| Q4 | What counts as a "rare or valuable" item? | ambiguity in the brief | game events feature |
-| Q5 | Preference granularity beyond category? | brief says simplified | preferences feature |
-| Q6 | Include PvP events? | brief says optional | after required scope |
-| Q7 | Real-time mechanism and delivery guarantee | brief says assume a mechanism exists | delivery feature |
-| Q8 | Persistence and scale limits to state in the README | not covered by brief | packaging |
+| # | Question | Raised by | Settle in | Status |
+|---|---|---|---|---|
+| Q1 | The brief says a `Notification` class is provided but none was attached. Wait for the recruiter's reply, or define our own? | brief gap, email sent to the recruiter | first feature | Decided in 001: define our own. |
+| Q2 | Language and shape: Python, Node, or both; one app or API plus separate frontend? | owner | first feature | Language decided in 001: Python with FastAPI, one app. Whether the demo is a separate frontend is settled in feature 004. |
+| Q3 | Who is notified for `friendRequestAccepted(1, 3)`? | ambiguity in the brief | social events feature | Decided: the original requester (functional spec, FR-6 in 001). |
+| Q4 | What counts as a "rare or valuable" item? | ambiguity in the brief | game events feature | Decided: the producer decides, the module notifies every item it receives (FR-3 in 001). |
+| Q5 | Preference granularity beyond category? | brief says simplified | preferences feature | Open. Functional spec says per category, Game and Social. Confirm in 002. |
+| Q6 | Include PvP events? | brief says optional | after required scope | Open. Excluded from the initial scope by the functional spec. |
+| Q7 | Real-time mechanism and delivery guarantee | brief says assume a mechanism exists | delivery feature | Open. Intake is transport neutral (001). Delivery semantics are settled in 003. |
+| Q8 | Persistence and scale limits to state in the README | not covered by brief | packaging | Open. Settled at packaging. |
+
+Questions raised inside a feature (numbered Q9 onward) live in that feature's `spec.md` and are all resolved for 001.
 
 ## 3. Feature spec blueprint
 Copy to `docs/features/NNN-name/spec.md` when the owner picks a feature.

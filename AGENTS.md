@@ -34,7 +34,15 @@ Spec-driven, in a minimal Spec Kit style, in layers. The owner makes the key dec
 Draft one file at a time and wait for review before the next. Never create files for features the owner has not picked. If code and spec disagree, stop and say so; change the spec deliberately and log why.
 
 ## Commands
-None yet. The first feature records how to install, run and test the project here.
+Python 3.12 or newer.
+
+```
+python -m venv .venv
+.venv\Scripts\activate            # Windows (source .venv/bin/activate on macOS and Linux)
+pip install -e ".[dev]"           # install
+pytest                            # test
+uvicorn notifications.api.app:app # run, then POST JSON to http://127.0.0.1:8000/events
+```
 
 ## Standards that apply regardless of design
 - Constitution principles apply to every feature.

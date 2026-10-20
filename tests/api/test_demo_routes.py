@@ -117,6 +117,22 @@ def test_the_player_list_gives_each_tokens_and_its_state():  # FR-55, spec edge 
 
     by_id = {p["player_id"]: p for p in players}
     assert sorted(by_id) == [1, 2, 3, 4, 5, 6]
-    assert by_id[1] == {"player_id": 1, "display_name": "Alice", "token": "token-1", "unreachable": False}
+    assert by_id[1] == {
+        "player_id": 1,
+        "display_name": "Alice",
+        "token": "token-1",
+        "unreachable": False,
+        "preferences": {"game": True, "social": True},  # on until turned off
+    }
     assert by_id[5]["token"] is None
     assert by_id[6]["unreachable"] is True
+
+
+def test_the_player_list_reports_preferences_as_they_are_now():  # so the page's checkboxes match after a reload
+    client = TestClient(build_default_app())
+    client.put("/preferences", json={"player_id": 4, "category": "game", "enabled": False})
+
+    by_id = {p["player_id"]: p for p in client.get("/demo/players").json()}
+
+    assert by_id[4]["preferences"] == {"game": False, "social": True}
+    assert by_id[1]["preferences"] == {"game": True, "social": True}

@@ -66,7 +66,7 @@ They live in `src/notifications/simulated/producers.py` and are given a submit f
 | `POST /events` | Submit an event. `200` with `{"status": "processed" \| "suppressed" \| "undeliverable" \| "duplicate"}`, `422` with `{"code", "message"}` for an invalid event, `503` with `DELIVERY_FAILED` when the channel is down. |
 | `PUT /preferences` | `{"player_id": 1, "category": "game" \| "social", "enabled": false}`. `200` or `422`. |
 | `GET /demo` | The live demo page. |
-| `GET /demo/players` | The sample players and their delivery tokens. |
+| `GET /demo/players` | The sample players, their delivery tokens and their current Game and Social settings. |
 | `GET /feeds/{token}` | Server-Sent Events: what the token holds as `history`, then new deliveries as `live`. |
 
 Event payloads are flat JSON: `event_id`, `type`, and the type's fields.
@@ -102,10 +102,10 @@ Spec-driven with an AI agent (Claude Code), one feature at a time, each with a s
 
 ## Known limitations
 - **Everything is in memory.** Preferences, used event IDs and delivered notifications are lost on restart and are not shared between processes, so the app must run as a single process.
-- **Event IDs.** A reused ID is silently treated as a duplicate. IDs are never expired. If the process crashes between claiming an ID and delivering, that notification is lost.
+- **Event IDs.** A reused ID is silently treated as a duplicate. The store keeps only the most recent 10,000 IDs and drops the oldest, so an event resent after that many newer ones is processed again. If the process crashes between claiming an ID and delivering, that notification is lost.
 - **Delivery is simulated.** The in-app channel records what each client would have received (the latest 100 per token) and fakes an unreachable channel for player 6. Delivery means "handed to the channel", not "seen by the player". There are no retries inside the module; the producer retries on `503`.
 - **No backlog.** A notification for a player with no in-app channel is not kept for later, by design, so a player is not flooded with popups when they connect. The platform is assumed to keep a notification history elsewhere.
 - **No authentication.** Anyone who can reach the app can submit events, change any player's preferences and read any feed.
-- **Demo page.** The page opens one connection per feed. Browsers allow about six connections per host over HTTP/1.1, so a second tab of the page in the same browser may stall. The preference checkboxes start as "on" when the page loads, whatever was set before.
+- **Demo page.** The page opens one connection per feed. Browsers allow about six connections per host over HTTP/1.1, so a second tab of the page in the same browser may stall.
 - **Sample data is fixed.** The six sample players are built in; there is no way to add players at runtime.
 - **Out of scope**: PvP events (optional in the brief), real WebSocket or push delivery, a message broker, persistence.

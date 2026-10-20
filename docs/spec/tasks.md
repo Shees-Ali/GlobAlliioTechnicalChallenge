@@ -10,7 +10,7 @@ Features are chosen one at a time with the project owner. Add a row when one is 
 | 1 | Event intake and dispatch | `docs/features/001-event-intake-and-dispatch/` | Implemented, amended with event-ID idempotency (decision 11) |
 | 2 | User preferences | `docs/features/002-user-preferences/` | Implemented, merged to `main` |
 | 3 | In-app delivery | `docs/features/003-in-app-delivery/` | Implemented, merged to `main` |
-| 4 | Demonstration | `docs/features/004-demonstration/` | Implemented, awaiting owner review before commit |
+| 4 | Demonstration | `docs/features/004-demonstration/` | Implemented, merged to `main` |
 
 ## Delivery checklist (from the brief)
 - [x] Project compiles and runs from a fresh clone using the provided scripts (checked in 004 on a clean copy: install, `pytest`, demo script)

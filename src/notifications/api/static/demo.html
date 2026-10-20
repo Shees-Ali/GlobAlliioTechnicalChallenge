@@ -192,7 +192,7 @@ function renderPlayer(player) {
   for (const category of CATEGORIES) {
     const label = el("label");
     const box = el("input", { type: "checkbox" });
-    box.checked = true;  // categories are on unless turned off
+    box.checked = player.preferences[category];  // the server's current setting, so a reload stays true
     box.addEventListener("change", () => send("PUT", "/preferences",
       { player_id: player.player_id, category, enabled: box.checked },
       `${player.display_name}: ${category} ${box.checked ? "on" : "off"}`));

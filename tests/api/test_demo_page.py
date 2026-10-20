@@ -29,3 +29,7 @@ def test_the_page_has_preference_controls_and_a_resend():  # FR-57
 def test_the_page_tells_history_from_live():  # FR-60
     assert 'addEventListener("history"' in HTML
     assert 'addEventListener("live"' in HTML
+
+
+def test_the_checkboxes_start_from_the_servers_preferences():  # not always "on" after a reload
+    assert "player.preferences[category]" in HTML

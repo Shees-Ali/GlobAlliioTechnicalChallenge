@@ -1,7 +1,7 @@
 # Plan: Feature 004 Demonstration
 
 Implements: [spec.md](spec.md)
-Status: Implemented, awaiting owner review before commit
+Status: Implemented, merged to `main`
 
 ## 1. Summary
 Two simulated producers, `GameEngine` and `SocialSystem`, build events in the 001 contract and pass them to a submit function they are given. The wiring that `build_default_app` does today moves into one shared function, so the demo script (`python -m notifications.demo`) and the app use the same simulated dependencies. `InAppChannel` gains subscriptions. A subscriber gets a snapshot of what the token already holds, sent marked `history`, and then each new delivery, sent marked `live`. Both are taken under the channel's existing lock, so nothing is missed or sent twice, and no item is both history and live (FR-60). A new `api/demo.py` router serves the page, a player list and an SSE stream per token, with items marked `history` or `live`. The project closes with a root `README.md`.
@@ -80,7 +80,7 @@ Subscription.close()    removes it from the channel (called when the feed discon
 ### Stream and routes (`api/demo.py`)
 - `GET /feeds/{token}` returns `text/event-stream`. It sends each history item as `event: history`, then each live item as `event: live`, with `data:` a JSON object `{recipient_id, category, event_type, message}`. A comment line every 15 seconds keeps the connection open. When the client disconnects, the subscription is closed in a `finally`.
 - The generator is a plain async function over a `Subscription`, so it can be tested without an HTTP server (R10).
-- `GET /demo/players` returns each sample player's ID, name, token (or `null`) and whether the token is unreachable. The page uses it to open one feed per token and to label players 5 and 6.
+- `GET /demo/players` returns each sample player's ID, name, token (or `null`), whether the token is unreachable, and their current Game and Social settings. The page uses it to open one feed per token, to label players 5 and 6, and to start each checkbox from the server's setting. (The settings were added after the Codex review found the checkboxes always started as on.)
 - `GET /demo` returns `static/demo.html`.
 
 ### Page (`static/demo.html`, FR-57, FR-60)

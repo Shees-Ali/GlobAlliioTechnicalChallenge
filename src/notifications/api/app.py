@@ -51,7 +51,7 @@ def build_default_app() -> FastAPI:
     sim = build_simulated()
     app = create_app(sim.service, sim.preference_service)
     app.state.channel = sim.channel  # lets tests and the demo see what each client would have received
-    app.include_router(demo_router(sim.channel, sim.users, UNREACHABLE_TOKENS))
+    app.include_router(demo_router(sim.channel, sim.users, UNREACHABLE_TOKENS, sim.preferences))
     return app
 
 

@@ -57,6 +57,8 @@ def test_turning_off_a_category_twice_succeeds(preference_service, preferences):
         ({"player_id": 99, "category": "game", "enabled": False}, ErrorCode.UNKNOWN_PLAYER),
         ({"player_id": 1, "category": "pvp", "enabled": False}, ErrorCode.UNSUPPORTED_CATEGORY),
         ({"player_id": 1, "category": 1, "enabled": False}, ErrorCode.UNSUPPORTED_CATEGORY),
+        ({"player_id": 1, "category": [], "enabled": False}, ErrorCode.UNSUPPORTED_CATEGORY),  # unhashable
+        ({"player_id": 1, "category": {}, "enabled": False}, ErrorCode.UNSUPPORTED_CATEGORY),  # unhashable
         ({"player_id": 1, "category": "game", "enabled": 1}, ErrorCode.MALFORMED_FIELD),
         ({"player_id": 1, "category": "game", "enabled": "false"}, ErrorCode.MALFORMED_FIELD),
         ({"player_id": "1", "category": "game", "enabled": False}, ErrorCode.MALFORMED_FIELD),

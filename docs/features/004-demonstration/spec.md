@@ -1,5 +1,5 @@
 # Feature 004: Demonstration
-Status: Implemented, awaiting owner review before commit
+Status: Implemented, merged to `main`
 Builds on: 001 (event intake and dispatch), 002 (user preferences), 003 (in-app delivery)
 
 Source: the brief ("example usage that shows events triggering notifications", with `gameEngine.playerLeveledUp(1, 15)`, `gameEngine.itemAcquired(2, "SwordOfAzeroth")`, `socialSystem.friendRequestSent(3, 1)`, `socialSystem.friendRequestAccepted(1, 3)`; "a README is recommended") and the Initial Functional Specification (`docs/functional-spec.md`), section 2 "Demonstrated flow" and acceptance scenarios 1 and 9. Settles the demo half of base question Q2 (separate frontend or not) and Q8 (limits stated in the README).

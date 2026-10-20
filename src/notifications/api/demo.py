@@ -8,8 +8,9 @@ from pathlib import Path
 from fastapi import APIRouter
 from fastapi.responses import FileResponse, StreamingResponse
 
-from notifications.core.notification import Notification
-from notifications.core.ports import UserRecord
+from notifications.core.notification import Category, Notification
+from notifications.core.ports import PreferenceStore, UserRecord
+from notifications.core.preferences import is_enabled
 from notifications.simulated.in_app_channel import InAppChannel, Subscription
 
 PAGE = Path(__file__).parent / "static" / "demo.html"
@@ -44,18 +45,15 @@ async def feed_events(subscription: Subscription, keepalive: float = KEEPALIVE_S
         subscription.close()  # a disconnect cancels the stream, which releases the feed
 
 
-def demo_router(channel: InAppChannel, users: Iterable[UserRecord], unreachable_tokens: Iterable[str]) -> APIRouter:
+def demo_router(
+    channel: InAppChannel,
+    users: Iterable[UserRecord],
+    unreachable_tokens: Iterable[str],
+    preferences: PreferenceStore,
+) -> APIRouter:
     router = APIRouter()
     unreachable = frozenset(unreachable_tokens)
-    players = [
-        {
-            "player_id": user.player_id,
-            "display_name": user.display_name,
-            "token": user.delivery_token,
-            "unreachable": user.delivery_token in unreachable,
-        }
-        for user in users
-    ]
+    users = list(users)
 
     @router.get("/demo")
     async def page() -> FileResponse:
@@ -63,7 +61,17 @@ def demo_router(channel: InAppChannel, users: Iterable[UserRecord], unreachable_
 
     @router.get("/demo/players")
     async def player_list() -> list[dict]:
-        return players
+        # read on every request, so the page's checkboxes match the server after a reload
+        return [
+            {
+                "player_id": user.player_id,
+                "display_name": user.display_name,
+                "token": user.delivery_token,
+                "unreachable": user.delivery_token in unreachable,
+                "preferences": {c.value: is_enabled(preferences, user.player_id, c) for c in Category},
+            }
+            for user in users
+        ]
 
     @router.get("/feeds/{token}")
     async def feed(token: str) -> StreamingResponse:

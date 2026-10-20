@@ -2,7 +2,7 @@
 
 from dataclasses import dataclass
 
-from notifications.core.ports import UserRecord
+from notifications.core.ports import PreferenceStore, UserRecord
 from notifications.core.preferences import PreferenceService
 from notifications.core.service import NotificationService
 from notifications.simulated.in_app_channel import InAppChannel
@@ -18,6 +18,7 @@ class Simulated:
     preference_service: PreferenceService
     channel: InAppChannel
     users: list[UserRecord]
+    preferences: PreferenceStore
 
 
 def build_simulated() -> Simulated:
@@ -26,4 +27,4 @@ def build_simulated() -> Simulated:
     preferences = InMemoryPreferenceStore()  # shared, so a change applies to the next event
     channel = InAppChannel(unreachable_tokens=UNREACHABLE_TOKENS)
     service = NotificationService(directory, channel, InMemoryProcessedEvents(), preferences)
-    return Simulated(service, PreferenceService(directory, preferences), channel, list(SAMPLE_USERS))
+    return Simulated(service, PreferenceService(directory, preferences), channel, list(SAMPLE_USERS), preferences)

@@ -40,7 +40,8 @@ class PreferenceService:
         player_id, category, enabled = (payload[name] for name in FIELDS)
         if not PlayerId().accepts(player_id):
             raise InvalidPreferenceError(ErrorCode.MALFORMED_FIELD, "malformed field 'player_id'")
-        if category not in {c.value for c in Category}:
+        # isinstance first: a list or object is unhashable and would crash the set lookup
+        if not isinstance(category, str) or category not in {c.value for c in Category}:
             raise InvalidPreferenceError(
                 ErrorCode.UNSUPPORTED_CATEGORY, f"unsupported category: {category!r}"
             )

@@ -37,6 +37,8 @@ def test_a_valid_change_returns_200_and_is_applied(client, preferences):  # FR-3
     [
         ({"player_id": 99, "category": "game", "enabled": False}, "UNKNOWN_PLAYER"),
         ({"player_id": 1, "category": "pvp", "enabled": False}, "UNSUPPORTED_CATEGORY"),
+        ({"player_id": 1, "category": [], "enabled": False}, "UNSUPPORTED_CATEGORY"),  # was a 500
+        ({"player_id": 1, "category": {}, "enabled": False}, "UNSUPPORTED_CATEGORY"),  # was a 500
         ({"player_id": 1, "category": "game", "enabled": "false"}, "MALFORMED_FIELD"),
         ({"player_id": 1, "category": "game"}, "MISSING_FIELD"),
     ],

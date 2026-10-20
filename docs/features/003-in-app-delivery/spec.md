@@ -97,3 +97,19 @@ Decided before drafting (owner, structured question tool), moved to the decision
 | AC-49 | `tests/core/test_service_delivery.py::test_a_recipient_with_a_blank_token_is_undeliverable` | Passing |
 | AC-50 | `tests/core/test_in_app_channel.py::test_past_the_limit_the_oldest_for_that_token_is_dropped`, `tests/core/test_in_app_channel.py::test_the_default_limit_is_the_named_constant` | Passing |
 | AC-51 | `tests/core/test_in_app_channel.py::test_an_unreachable_token_raises_and_records_nothing` | Passing |
+
+## Amendment (decision 34): notification identity and what the delivery contract guarantees
+Source: the external review of `e316a6c`. A delivery that took effect and then raised was released and retried, and delivered twice, and the notification carried nothing a receiver could use to drop the repeat. Refines FR-37 and FR-38.
+
+**Requirements**
+- FR-64: A notification carries the `event_id` of the event that produced it, so a receiver can drop a repeat by that ID. The module makes one delivery attempt per processing attempt. A failed attempt can be retried using the same `event_id`. An uncertain delivery outcome (the delivery took effect, then raised) can produce a duplicate, and a receiver can use the `event_id` to drop it. The module does not by itself guarantee at-least-once delivery: its state is in memory, undeliverable events are dropped by design (FR-41), there is no durable pending work, and producer retries are not enforced. It supports an at-least-once workflow only when combined with producer retries and durable storage.
+
+**Acceptance criteria**
+| ID | Given / When / Then | Covers |
+|---|---|---|
+| AC-67 | Given a valid event with `event_id` `evt-9`, when it is delivered, then the notification handed to the channel carries `event_id` `evt-9`. Given a delivery that takes effect and then raises, when the event is resent with the same ID, then both deliveries carry the same `event_id`. | FR-64 |
+
+**Traceability**
+| ID | Test | Status |
+|---|---|---|
+| AC-67 | `tests/core/test_service_delivery.py::test_a_notification_carries_the_event_id_of_its_event`, `::test_a_repeat_after_an_uncertain_outcome_carries_the_same_event_id` | Passing |

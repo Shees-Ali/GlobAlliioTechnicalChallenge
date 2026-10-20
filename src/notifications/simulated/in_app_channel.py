@@ -16,7 +16,9 @@ class Subscription:
     """A live feed for one token: what the token held when it connected, then each new delivery.
 
     Live items are handed to the feed's event loop, so `deliver` may run on any thread.
-    A feed whose queue fills up is closed rather than slowing or failing delivery.
+    At most `max_live` items may be outstanding (handed off but not yet read). The bound is
+    checked before anything is scheduled, and a feed that reaches it is closed rather than
+    slowing or failing delivery (FR-66). It reconnects and gets everything as history.
     """
 
     def __init__(
@@ -31,20 +33,29 @@ class Subscription:
         self.closed = False
         self._channel = channel
         self._loop = asyncio.get_running_loop()
-        self._queue: asyncio.Queue[Notification | None] = asyncio.Queue(max_live)
+        self._queue: asyncio.Queue[Notification | None] = asyncio.Queue()  # bounded by _outstanding
+        self._max_live = max_live
+        self._outstanding = 0
+        self._count_lock = threading.Lock()  # deliver runs on any thread, the reader on the loop
 
     async def next_live(self) -> Notification | None:
         """The next live delivery, or None once the feed is closed."""
         if self.closed and self._queue.empty():
             return None
-        return await self._queue.get()
+        return self._taken(await self._queue.get())
 
     def next_nowait(self) -> Notification | None:
         """The next live delivery already waiting, or None."""
         try:
-            return self._queue.get_nowait()
+            return self._taken(self._queue.get_nowait())
         except asyncio.QueueEmpty:
             return None
+
+    def _taken(self, item: Notification | None) -> Notification | None:
+        if item is not None:
+            with self._count_lock:
+                self._outstanding -= 1
+        return item
 
     def close(self) -> None:
         if self.closed:
@@ -57,7 +68,15 @@ class Subscription:
             pass  # the feed's loop has already ended, nobody is waiting
 
     def _offer(self, notification: Notification) -> bool:
-        """Hand a delivery to the feed's loop. Never blocks. False if the loop has ended."""
+        """Hand a delivery to the feed's loop. Never blocks.
+
+        False, with nothing scheduled, if the feed is at its bound or its loop has ended.
+        The caller then closes the feed.
+        """
+        with self._count_lock:
+            if self._outstanding >= self._max_live:
+                return False  # the reader has stalled: do not schedule any more work for it
+            self._outstanding += 1
         try:
             self._loop.call_soon_threadsafe(self._put, notification)
         except RuntimeError:
@@ -65,12 +84,8 @@ class Subscription:
         return True
 
     def _put(self, notification: Notification) -> None:  # runs on the feed's loop
-        if self.closed:
-            return
-        try:
-            self._queue.put_nowait(notification)
-        except asyncio.QueueFull:
-            self.close()  # the feed stopped reading; it reconnects and gets the history
+        if not self.closed:
+            self._queue.put_nowait(notification)  # cannot be full: _offer bounded it
 
     def _end(self) -> None:  # runs on the feed's loop: drop what is queued and wake a waiting reader
         while not self._queue.empty():

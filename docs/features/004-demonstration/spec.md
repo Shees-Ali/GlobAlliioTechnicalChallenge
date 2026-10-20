@@ -100,3 +100,22 @@ Decided before drafting (owner, structured question tool), moved to the decision
 | AC-60 | `tests/api/test_demo_page.py` (all tests), plus the browser check run by the owner and by the agent (decision 29) | Passing |
 | AC-61 | `tests/test_readme.py::test_the_readme_covers_it` | Passing |
 | AC-62 | `tests/core/test_channel_subscriptions.py::test_an_undeliverable_event_never_reaches_a_token_issued_later` | Passing |
+
+## Amendment (decision 34): feed bound in the channel, event ID on feed items
+Source: the external review of `e316a6c`. The channel scheduled a hand-off to the feed's event loop for every delivery before checking the feed's bound, so a feed that was not being read could pile up thousands of pending callbacks. Refines FR-58 and FR-60.
+
+**Requirements**
+- FR-66: A feed's outstanding live items (handed off but not yet read) are bounded in the channel itself. When a delivery would go past the bound, the feed is closed before any more work is scheduled for it. Delivery still succeeds and is still recorded (FR-58).
+- FR-67: Each feed item includes the notification's `event_id`, so the page, or a real client, can drop a repeat.
+
+**Acceptance criteria**
+| ID | Given / When / Then | Covers |
+|---|---|---|
+| AC-69 | Given a feed with a bound of 1 that is never read, when 5,000 notifications are delivered without the feed's event loop running, then the feed is closed at the second delivery, no further work is scheduled for it, its stream ends (a reconnect gets everything as history), and every delivery is still recorded by the channel. | FR-66, FR-58 |
+| AC-70 | Given a feed, when a notification is pushed to it, then the item's data includes the `event_id`. | FR-67 |
+
+**Traceability**
+| ID | Test | Status |
+|---|---|---|
+| AC-69 | `tests/core/test_channel_subscriptions.py::test_the_feed_bound_is_enforced_before_any_work_is_scheduled`, `::test_reading_frees_room_in_the_feed` | Passing |
+| AC-70 | `tests/api/test_demo_routes.py::test_the_stream_sends_held_notifications_as_history_then_new_ones_as_live` | Passing |

@@ -179,3 +179,30 @@ None. All questions raised for this feature are resolved. The reasoning is in `d
 | AC-24 | `tests/core/test_idempotency.py::test_the_same_id_with_different_content_is_a_duplicate` | Passing |
 | AC-25 | `tests/core/test_idempotency.py::test_many_threads_submitting_one_event_cause_exactly_one_delivery` (with a racy-store control), `tests/core/test_in_memory_processed_events.py::test_concurrent_claims_of_one_id_yield_exactly_one_winner` | Passing |
 | AC-26 | `tests/core/test_in_memory_processed_events.py::test_past_capacity_the_oldest_id_is_dropped`, `..._a_repeat_claim_does_not_refresh_the_age_of_an_id` | Passing |
+
+## Amendment (decision 34): event-ID lifecycle and the execution model
+Source: an external review of `e316a6c`, reproduced by probe. It found that a copy arriving while the original was still being delivered was answered `duplicate` although nothing had been delivered yet, that the bounded store could evict an ID still in progress, and that the `async` routes ran the synchronous core on the event loop. Refines FR-20, FR-22, FR-24 and FR-25.
+
+**Requirements**
+- FR-61: An `event_id` has a lifecycle. It is in progress from the claim (FR-21) until the event's outcome is final, then completed. A completed ID is a duplicate (FR-20). On any failure after the claim the ID is released (FR-22) and can be claimed again. Processed, suppressed and undeliverable are all final outcomes, so each completes the ID (FR-32, FR-41).
+- FR-62: An event whose `event_id` is still in progress is not processed and not answered `duplicate`, because the first copy may still fail. It is rejected as retryable with the code `EVENT_IN_PROGRESS`. Over HTTP this is `409`.
+- FR-63: Only completed IDs count toward the retention bound (FR-25). An ID in progress is never dropped, so a second copy can never run while the first is still in progress.
+- FR-65: The event and preference routes run the synchronous core off the server's event loop, so a slow delivery does not delay other requests or open live feeds.
+
+**Acceptance criteria**
+| ID | Given / When / Then | Covers |
+|---|---|---|
+| AC-63 | Given an event whose delivery is still in progress, when a copy with the same `event_id` is submitted, then the copy is rejected with `EVENT_IN_PROGRESS` and nothing more is delivered. When the original then fails, a resend with the same ID is processed. | FR-61, FR-62 |
+| AC-64 | Given an event in progress, when a copy is submitted over HTTP, then the response is `409` with code `EVENT_IN_PROGRESS` and a message. | FR-62 |
+| AC-65 | Given a store at its capacity with one ID in progress, when more IDs are claimed and completed, then the ID in progress is not dropped and a copy of it is still reported in progress. Completed IDs past the capacity are dropped, oldest first. | FR-63 |
+| AC-66 | Given an event that was processed, suppressed or undeliverable, when it is resent with the same ID, then it is a duplicate. | FR-61 |
+| AC-68 | Given a delivery that takes 150 ms, when three events are posted at once and a 10 ms timer runs on the server's event loop, then the timer is not held up by the deliveries and the posts overlap. | FR-65 |
+
+**Traceability**
+| ID | Test | Status |
+|---|---|---|
+| AC-63 | `tests/core/test_event_id_lifecycle.py::test_a_copy_sent_while_the_original_is_in_progress_is_rejected_as_retryable` (a control with the old two-state store makes it fail) | Passing |
+| AC-64 | `tests/api/test_delivery_route.py::test_a_copy_of_an_event_in_progress_returns_409` | Passing |
+| AC-65 | `tests/core/test_in_memory_processed_events.py::test_an_id_in_progress_is_never_dropped`, `tests/core/test_event_id_lifecycle.py::test_an_id_in_progress_is_not_evicted_so_it_never_runs_twice` | Passing |
+| AC-66 | `tests/core/test_event_id_lifecycle.py::test_a_copy_sent_after_completion_is_a_duplicate`, plus the suppressed and undeliverable cases in AC-34 and AC-42 | Passing |
+| AC-68 | `tests/api/test_execution_model.py::test_a_slow_delivery_does_not_hold_up_other_requests_or_the_event_loop` (failed at 0.455 s before the change) | Passing |

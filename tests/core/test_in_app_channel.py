@@ -9,7 +9,7 @@ from notifications.simulated.in_app_channel import MAX_NOTIFICATIONS_PER_TOKEN, 
 
 
 def note(n: int, recipient: int = 1) -> Notification:
-    return Notification(recipient, Category.GAME, "level_up", f"message {n}")
+    return Notification(recipient, Category.GAME, "level_up", f"message {n}", f"evt-{n}")
 
 
 def test_delivery_error_carries_its_code_and_message():

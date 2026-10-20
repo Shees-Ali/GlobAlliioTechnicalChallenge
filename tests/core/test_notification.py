@@ -12,13 +12,14 @@ def test_notification_identifies_recipient_category_event_type_and_message():
         category=Category.GAME,
         event_type="level_up",
         message="Congratulations! You've reached level 15!",
+        event_id="evt-1",
     )
-    assert (n.recipient_id, n.category, n.event_type) == (1, Category.GAME, "level_up")
+    assert (n.recipient_id, n.category, n.event_type, n.event_id) == (1, Category.GAME, "level_up", "evt-1")
     assert "15" in n.message
 
 
 def test_notification_is_immutable():
-    n = Notification(1, Category.SOCIAL, "new_follower", "Alex is now following you.")
+    n = Notification(1, Category.SOCIAL, "new_follower", "Alex is now following you.", "evt-1")
     with pytest.raises(dataclasses.FrozenInstanceError):
         n.message = "changed"  # type: ignore[misc]
 
@@ -44,4 +45,5 @@ def test_error_codes():
         "UNKNOWN_PLAYER",
         "UNSUPPORTED_CATEGORY",  # added in 002 for preference changes
         "DELIVERY_FAILED",  # added in 003
+        "EVENT_IN_PROGRESS",  # added in decision 34
     }

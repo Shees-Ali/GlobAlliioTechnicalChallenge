@@ -112,3 +112,38 @@ def test_a_processed_event_is_held_by_the_channel_under_the_recipients_token(
     [held] = channel.delivered_to("token-1")
     assert (held.recipient_id, held.category, held.event_type) == (1, Category.GAME, "level_up")
     assert "15" in held.message
+
+
+def test_a_notification_carries_the_event_id_of_its_event(service, delivery):  # AC-67, FR-64
+    service.handle_event({"event_id": "evt-9", "type": "level_up", "player_id": 1, "new_level": 15})
+
+    [(notification, _)] = delivery.calls
+    assert notification.event_id == "evt-9"
+
+
+class TakesEffectThenRaisesOnce(RecordingDelivery):
+    """The delivery happens, but the confirmation is lost: the uncertain outcome in FR-64."""
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.raised = False
+
+    def deliver(self, notification, token):
+        super().deliver(notification, token)
+        if not self.raised:
+            self.raised = True
+            raise DeliveryError("acknowledgement lost")
+
+
+def test_a_repeat_after_an_uncertain_outcome_carries_the_same_event_id(directory, processed_events, preferences):  # AC-67
+    delivery = TakesEffectThenRaisesOnce()
+    service = NotificationService(directory, delivery, processed_events, preferences)
+    event = {"event_id": new_id(), "type": "level_up", "player_id": 1, "new_level": 15}
+
+    with pytest.raises(DeliveryError):
+        service.handle_event(event)
+    assert service.handle_event(event) is Outcome.PROCESSED
+
+    # Two deliveries took effect (the module does not prevent this), but a receiver can drop the
+    # repeat because both carry the same event_id.
+    assert [n.event_id for n, _ in delivery.calls] == [event["event_id"]] * 2

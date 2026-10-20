@@ -18,7 +18,7 @@ from notifications.simulated.in_memory_processed_events import InMemoryProcessed
 
 
 def note(n: int, recipient: int = 1) -> Notification:
-    return Notification(recipient, Category.GAME, "level_up", f"message {n}")
+    return Notification(recipient, Category.GAME, "level_up", f"message {n}", f"evt-{n}")
 
 
 async def settle() -> None:
@@ -186,5 +186,37 @@ def test_an_undeliverable_event_never_reaches_a_token_issued_later():  # AC-62, 
         assert service.handle_event(missed) is Outcome.DUPLICATE
         assert service.handle_event({**missed, "event_id": new_id(), "new_level": 3}) is Outcome.PROCESSED
         assert [n.message for n in await drain(subscription)] == ["Congratulations! You've reached level 3!"]
+
+    asyncio.run(scenario())
+
+
+def test_the_feed_bound_is_enforced_before_any_work_is_scheduled():  # AC-69, FR-66
+    async def scenario():
+        channel = InAppChannel(max_per_token=5000)
+        subscription = channel.subscribe("token-1", max_live=1)
+        loop = asyncio.get_running_loop()
+        scheduled_before = len(loop._ready)  # callbacks waiting to run on this loop
+
+        for n in range(5000):  # the loop never runs during this, as when a reader has stalled
+            channel.deliver(note(n), "token-1")
+
+        assert subscription.closed  # closed at the second delivery, not later on the loop
+        assert len(loop._ready) - scheduled_before <= 2  # one hand-off and the close, not 5,000
+        assert len(channel.delivered_to("token-1")) == 5000  # delivery still recorded everything
+        assert await subscription.next_live() is None  # the stream ends; on reconnect it is all history
+
+    asyncio.run(scenario())
+
+
+def test_reading_frees_room_in_the_feed():  # FR-66: the bound counts items not yet read
+    async def scenario():
+        channel = InAppChannel()
+        subscription = channel.subscribe("token-1", max_live=2)
+
+        for n in range(6):
+            channel.deliver(note(n), "token-1")
+            assert await subscription.next_live() == note(n)
+
+        assert not subscription.closed
 
     asyncio.run(scenario())

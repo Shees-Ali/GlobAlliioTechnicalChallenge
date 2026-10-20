@@ -1,5 +1,6 @@
 """The event ID is the idempotency key (FR-19 to FR-25, decision 11)."""
 
+import dataclasses
 import threading
 import time
 from concurrent.futures import ThreadPoolExecutor
@@ -7,7 +8,8 @@ from concurrent.futures import ThreadPoolExecutor
 import pytest
 
 from fakes import FlakyDelivery, RecordingDelivery, new_id
-from notifications.core.errors import InvalidEventError
+from notifications.core.errors import EventInProgressError, InvalidEventError
+from notifications.core.ports import Claim
 from notifications.core.service import NotificationService, Outcome
 
 
@@ -47,7 +49,9 @@ def test_identical_content_with_different_ids_is_delivered_twice(service, delive
     service.handle_event(level_up("evt-2"))
 
     assert len(delivery.calls) == 2
-    assert delivery.calls[0][0] == delivery.calls[1][0]
+    first, second = delivery.calls[0][0], delivery.calls[1][0]
+    assert dataclasses.replace(first, event_id="") == dataclasses.replace(second, event_id="")  # same content
+    assert (first.event_id, second.event_id) == ("evt-1", "evt-2")  # two events, so two identities (FR-64)
 
 
 @pytest.mark.parametrize(
@@ -132,23 +136,32 @@ class RacyProcessedEvents:
     def __init__(self) -> None:
         self._ids: set[str] = set()
 
-    def claim(self, event_id: str) -> bool:
+    def claim(self, event_id: str) -> Claim:
         if event_id in self._ids:
-            return False
+            return Claim.COMPLETED
         time.sleep(0.002)
         self._ids.add(event_id)
-        return True
+        return Claim.NEW
+
+    def complete(self, event_id: str) -> None:
+        pass
 
     def release(self, event_id: str) -> None:
         self._ids.discard(event_id)
 
 
-def submit_concurrently(service: NotificationService, event: dict) -> list[Outcome]:
+IN_PROGRESS = "in progress"  # a copy that arrived while the first was still being delivered
+
+
+def submit_concurrently(service: NotificationService, event: dict) -> list[Outcome | str]:
     barrier = threading.Barrier(WORKERS)
 
-    def attempt() -> Outcome:
+    def attempt() -> Outcome | str:
         barrier.wait()
-        return service.handle_event(event)
+        try:
+            return service.handle_event(event)
+        except EventInProgressError:
+            return IN_PROGRESS
 
     with ThreadPoolExecutor(max_workers=WORKERS) as pool:
         return [f.result() for f in [pool.submit(attempt) for _ in range(WORKERS)]]
@@ -162,7 +175,8 @@ def test_many_threads_submitting_one_event_cause_exactly_one_delivery(directory,
 
     assert len(delivery.calls) == 1
     assert outcomes.count(Outcome.PROCESSED) == 1
-    assert outcomes.count(Outcome.DUPLICATE) == WORKERS - 1
+    # every other copy is told the first is still running, or, if it came late, that it is a duplicate
+    assert outcomes.count(Outcome.DUPLICATE) + outcomes.count(IN_PROGRESS) == WORKERS - 1
 
 
 def test_the_concurrency_test_can_catch_a_double_delivery(directory, preferences):  # control for AC-25

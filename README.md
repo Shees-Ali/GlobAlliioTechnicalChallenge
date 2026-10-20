@@ -43,10 +43,12 @@ curl -X POST http://127.0.0.1:8000/events -H "Content-Type: application/json" \
 ## Main features
 - **Six event types**: level up, item acquired, challenge completed, friend request, friend accepted, new follower. Each produces a clear message for the right player, for example "Congratulations! You've reached level 15!" or "Player 'Carol' has sent you a friend request." Friend accepted notifies the original requester.
 - **Validation**: unknown types, missing or malformed fields, unknown players and self-targeted social events are rejected with a reason code.
-- **Idempotency**: each event carries an `event_id`. A resend of an ID already used returns `duplicate` and notifies no one.
+- **Idempotency**: each event carries an `event_id`. A resend of a completed ID returns `duplicate` and notifies no one. A copy sent while the first is still being processed gets `409 EVENT_IN_PROGRESS`, a retryable error, because the first may still fail.
 - **Preferences**: each player can turn Game events and Social events on or off. Both are on until changed. A turned-off category suppresses the notification, and turning it back on does not replay it.
-- **In-app delivery**: one delivery attempt per event. A player with no in-app channel gets `undeliverable`. A channel failure answers `503` so the producer can retry with the same `event_id`.
-- **Transport neutral core**: the rules live in `notifications.core`, which has no web framework imports (checked by a test). HTTP is one thin adapter around it.
+- **In-app delivery**: the module makes one delivery attempt per processing attempt. Failed attempts can be retried using the same event ID. An uncertain delivery outcome can produce duplicates; receivers can use the event ID, which every notification carries, to deduplicate. A player with no in-app channel gets `undeliverable`. A channel failure answers `503`.
+- **Transport neutral core**: the rules live in `notifications.core`, which has no web framework imports (checked by a test). HTTP is one thin adapter around it, and runs the synchronous core in a thread pool so a slow delivery does not block other requests.
+
+The design, a diagram and the exact guarantees are on one page: [docs/architecture.md](docs/architecture.md).
 
 ## The brief's example usage
 The simulated producers use Python's snake_case names. Each method carries the brief's name in a comment.
@@ -63,11 +65,11 @@ They live in `src/notifications/simulated/producers.py` and are given a submit f
 ## HTTP interface
 | Route | Purpose |
 |---|---|
-| `POST /events` | Submit an event. `200` with `{"status": "processed" \| "suppressed" \| "undeliverable" \| "duplicate"}`, `422` with `{"code", "message"}` for an invalid event, `503` with `DELIVERY_FAILED` when the channel is down. |
+| `POST /events` | Submit an event. `200` with `{"status": "processed" \| "suppressed" \| "undeliverable" \| "duplicate"}`, `422` with `{"code", "message"}` for an invalid event, `409` with `EVENT_IN_PROGRESS` while another copy of the same `event_id` is still being processed, `503` with `DELIVERY_FAILED` when the channel is down. |
 | `PUT /preferences` | `{"player_id": 1, "category": "game" \| "social", "enabled": false}`. `200` or `422`. |
 | `GET /demo` | The live demo page. |
 | `GET /demo/players` | The sample players, their delivery tokens and their current Game and Social settings. |
-| `GET /feeds/{token}` | Server-Sent Events: what the token holds as `history`, then new deliveries as `live`. |
+| `GET /feeds/{token}` | Server-Sent Events: what the token holds as `history`, then new deliveries as `live`. Each item includes the notification's `event_id`. |
 
 Event payloads are flat JSON: `event_id`, `type`, and the type's fields.
 
@@ -102,8 +104,9 @@ Spec-driven with an AI agent (Claude Code), one feature at a time, each with a s
 
 ## Known limitations
 - **Everything is in memory.** Preferences, used event IDs and delivered notifications are lost on restart and are not shared between processes, so the app must run as a single process.
-- **Event IDs.** A reused ID is silently treated as a duplicate. The store keeps only the most recent 10,000 IDs and drops the oldest, so an event resent after that many newer ones is processed again. If the process crashes between claiming an ID and delivering, that notification is lost.
-- **Delivery is simulated.** The in-app channel records what each client would have received (the latest 100 per token) and fakes an unreachable channel for player 6. Delivery means "handed to the channel", not "seen by the player". There are no retries inside the module; the producer retries on `503`.
+- **Event IDs.** A reused ID is silently treated as a duplicate. The store keeps the most recent 10,000 completed IDs and drops the oldest, so an event resent after that many newer ones is processed again. IDs still being processed are never dropped. The store is in memory, so a restart forgets every ID. A persistent store would also need IDs left in progress by a crash to expire, or their retries would get `409` for ever.
+- **Delivery is simulated.** The in-app channel records what each client would have received (the latest 100 per token) and fakes an unreachable channel for player 6. Delivery means "handed to the channel", not "seen by the player".
+- **Delivery guarantee.** The module does not by itself guarantee at-least-once delivery: state is in memory, undeliverable events are dropped by design, there is no durable pending work, and producer retries are not enforced. A delivery that takes effect and then fails is released and can be delivered again by the retry; both copies carry the same `event_id`. It supports an at-least-once workflow only when combined with producer retries and durable storage.
 - **No backlog.** A notification for a player with no in-app channel is not kept for later, by design, so a player is not flooded with popups when they connect. The platform is assumed to keep a notification history elsewhere.
 - **No authentication.** Anyone who can reach the app can submit events, change any player's preferences and read any feed.
 - **Demo page.** The page opens one connection per feed. Browsers allow about six connections per host over HTTP/1.1, so a second tab of the page in the same browser may stall.

@@ -13,3 +13,4 @@ class Notification:
     category: Category
     event_type: str
     message: str
+    event_id: str  # the event that produced it, so a receiver can drop a repeat (FR-64)

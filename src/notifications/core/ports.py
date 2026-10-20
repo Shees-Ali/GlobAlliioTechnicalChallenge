@@ -1,5 +1,6 @@
 from collections.abc import Mapping
 from dataclasses import dataclass
+from enum import Enum
 from typing import Protocol, runtime_checkable
 
 from notifications.core.notification import Category, Notification
@@ -19,16 +20,32 @@ class UserDirectory(Protocol):
     def get(self, player_id: int) -> UserRecord | None: ...
 
 
+class Claim(Enum):
+    """What a claim on an event ID found (FR-61)."""
+
+    NEW = "new"  # the caller now owns the ID, which is in progress
+    IN_PROGRESS = "in_progress"  # another copy owns it and has not finished
+    COMPLETED = "completed"  # an earlier copy finished: a duplicate
+
+
 @runtime_checkable
 class ProcessedEvents(Protocol):
-    """Remembers which event IDs have been used. Seam for a shared store (Redis, a database)."""
+    """Tracks each event ID through its lifecycle. Seam for a shared store (Redis, a database).
 
-    def claim(self, event_id: str) -> bool:
-        """Atomically mark the ID as used. True if it was new, False if already used."""
+    An ID is claimed (in progress), then either completed or released. Only the caller
+    that got Claim.NEW completes or releases it. An ID in progress is never dropped.
+    """
+
+    def claim(self, event_id: str) -> Claim:
+        """Atomically claim the ID if it is free, and report what was found."""
+        ...
+
+    def complete(self, event_id: str) -> None:
+        """Mark an ID in progress as completed: later copies are duplicates."""
         ...
 
     def release(self, event_id: str) -> None:
-        """Give an ID back so the event can be processed again."""
+        """Give back an ID in progress so the event can be processed again. A completed ID stays."""
         ...
 
 

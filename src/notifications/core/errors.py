@@ -9,6 +9,7 @@ class ErrorCode(str, Enum):
     UNKNOWN_PLAYER = "UNKNOWN_PLAYER"
     UNSUPPORTED_CATEGORY = "UNSUPPORTED_CATEGORY"
     DELIVERY_FAILED = "DELIVERY_FAILED"
+    EVENT_IN_PROGRESS = "EVENT_IN_PROGRESS"
 
 
 class InvalidEventError(Exception):
@@ -36,3 +37,12 @@ class DeliveryError(Exception):
         super().__init__(message)
         self.code = ErrorCode.DELIVERY_FAILED
         self.message = message
+
+
+class EventInProgressError(Exception):
+    """Another copy of this event is still being processed. Retry later; it may still fail."""
+
+    def __init__(self, event_id: str):
+        super().__init__(f"event {event_id} is still being processed, retry later")
+        self.code = ErrorCode.EVENT_IN_PROGRESS
+        self.message = str(self)

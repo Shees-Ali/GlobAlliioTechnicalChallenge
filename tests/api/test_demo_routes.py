@@ -11,7 +11,7 @@ from notifications.simulated.in_app_channel import InAppChannel
 
 
 def note(n: int) -> Notification:
-    return Notification(1, Category.GAME, "level_up", f"message {n}")
+    return Notification(1, Category.GAME, "level_up", f"message {n}", f"evt-{n}")
 
 
 def parse(item: str) -> tuple[str, dict]:
@@ -42,6 +42,7 @@ def test_the_stream_sends_held_notifications_as_history_then_new_ones_as_live():
             "category": "game",
             "event_type": "level_up",
             "message": "message 3",
+            "event_id": "evt-3",  # AC-70, FR-67
         }
         await stream.aclose()
 

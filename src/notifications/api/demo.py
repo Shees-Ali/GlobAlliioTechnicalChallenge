@@ -23,6 +23,7 @@ def _sse(event: str, notification: Notification) -> str:
         "category": notification.category.value,
         "event_type": notification.event_type,
         "message": notification.message,
+        "event_id": notification.event_id,
     }
     return f"event: {event}\ndata: {json.dumps(data)}\n\n"
 

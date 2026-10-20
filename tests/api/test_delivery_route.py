@@ -78,3 +78,30 @@ def test_the_default_app_has_a_player_whose_channel_is_unreachable():  # AC-47, 
 
     assert response.status_code == 503
     assert response.json()["code"] == "DELIVERY_FAILED"
+
+
+class AlwaysInProgress:
+    """A store in which every ID is still being processed by another copy."""
+
+    def claim(self, event_id):
+        from notifications.core.ports import Claim
+
+        return Claim.IN_PROGRESS
+
+    def complete(self, event_id):
+        pass
+
+    def release(self, event_id):
+        pass
+
+
+def test_a_copy_of_an_event_in_progress_returns_409(preferences):  # AC-64, FR-62
+    delivery = RecordingDelivery()
+    client = client_with(delivery, AlwaysInProgress(), preferences)
+
+    response = client.post("/events", json=level_up(1))
+
+    assert response.status_code == 409
+    assert response.json()["code"] == "EVENT_IN_PROGRESS"
+    assert response.json()["message"]
+    assert delivery.calls == []

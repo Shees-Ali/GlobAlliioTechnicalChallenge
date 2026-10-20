@@ -24,18 +24,19 @@ Updated whenever a tool is added or used differently.
 
 | Tool | How it was used |
 |---|---|
-| Claude Code in the VS Code extension, model Claude Sonnet 5.5 | The only AI tool so far. Drafted the specs, plans and tasks, wrote tests and code, ran the suite, and kept the logs. It worked in one long session with the project owner. |
+| Claude Code in the VS Code extension, model Claude Sonnet 5.5 | The main AI tool in the repository. Drafted the specs, plans and tasks, wrote tests and code, ran the suite, and kept the logs. It worked in one long session with the project owner. |
 | `AGENTS.md` and `CLAUDE.md` | Standing instructions the agent reads at session start: spec-first workflow, one file at a time for review, test first, ask before adding dependencies, log the process. |
 | Claude Code's structured question tool | Used when the agent needed an owner decision with options and tradeoffs. Used for the feature split (decision 3) and for the three idempotency decisions (decision 11). Most other decisions were put as tables in chat or in the plan and answered in free text. |
 | File read, write and edit tools; shell | Read the base docs at session start, wrote the docs and code, ran `pytest`, `git`, `curl` and `uvicorn`. |
 | `pytest`, `uvicorn`, `curl`, a Python virtual environment | Verification. `pytest` after every task, and one hand run of the real app with `curl` before closing 001. |
 | Claude Code, model Claude Opus 5.5 (from feature 004) | Feature 004 was planned and built with Opus 5.5 instead of Sonnet 5.5, in the same VS Code extension and under the same `AGENTS.md` and `CLAUDE.md` rules. |
 | Throwaway probe scripts in the agent's scratch folder | Used in 004 to check that tests and fixes really work: a deliberately racy `subscribe` to prove the concurrency test can fail, and an in-process uvicorn server to watch a real disconnect release a feed. Not kept in the repo. |
+| Codex, in a separate chat | A second AI tool, used outside the repository workflow (decisions 30 to 32, recorded retrospectively). Before the repository work: reviewed the challenge for easily missed requirements, helped the owner write the initial functional specification, and brainstormed system boundaries with the owner. After the implementation: independent read-only reviews of the repository, including a fresh-clone install and test run, which found four issues (decision 32). Codex made no edits to application code, feature specs or tests. |
 | Claude in Chrome (MCP) | Used for 004's browser check of the demo page (AC-60, decision 29). It was not connected on the first try (decisions 27 and 28), and the owner connected it. The agent drove the real page: clicks for the checkboxes and the resend button, and the page's own form handlers for the six event types. |
 
 Plan mode was used four times, each time because the change touched a `core` interface or more than three files, as CLAUDE.md requires: the event-ID amendment (decision 11), 002-T2 (decision 15), 003-T2 (decision 20) and 004-T4 (decision 27). Each plan was approved by the owner and then implemented. It was skipped for task 001-T1 even though that touched more than three files, because the reviewed `plan.md` and `tasks.md` already fixed the design (a judgment call, not an instruction followed).
 
-Not used, so reviewers are not misled: subagents (the `spec-reviewer` and `test-writer` roles in CLAUDE.md, and the exploration and planning agents that plan mode offers; the agent explored the code directly because it had written it in the same session), and any second AI tool. One MCP integration was used: Claude in Chrome, for the 004 browser check (decision 29).
+Not used, so reviewers are not misled: subagents (the `spec-reviewer` and `test-writer` roles in CLAUDE.md, and the exploration and planning agents that plan mode offers; the agent explored the code directly because it had written it in the same session). One second AI tool was used, Codex, in a separate chat for brainstorming the requirements and for independent read-only review (decisions 30 to 32). One MCP integration was used: Claude in Chrome, for the 004 browser check (decision 29).
 
 How the agent was kept honest:
 - Tasks T2 to T9 and T11 each started with a test that was run and seen to fail. The same holds for T13 (validator), T14, T15, T16 (delivery failure) and T18; T17's concurrency test passed on arrival, so a control with a deliberately racy store proves it can detect a double delivery. Exceptions in the first round: T1, whose architecture test passes on an empty `core`, so it was checked by adding a probe import and seeing it fail; and T10, whose tests passed on arrival (decision 7).
@@ -129,6 +130,7 @@ The owner's prompts that changed the direction of the work, quoted from the sess
 | 27 | "Implement and leave everything for review" | T1 to T7 implemented test first, nothing committed. Plan mode for T4. A probe showed the first concurrency test could not fail, and it was fixed. See decision 27. |
 | 28 | "yes update the shared files and readme, and close any open questions. And then run a pass through the repo to make sure everything is marked close" | Base files updated with the owner's OK, Q6 and Q8 closed, checklist ticked after checking each item, stale statuses and tool notes fixed. The browser check stays open as 004-T9. See decision 28. |
 | 29 | "I have run them but do a pass using the browser extension yourself as well once" | The owner ran the browser check, and the agent ran it again through Claude in Chrome. AC-60 and 004-T9 closed. See decision 29. |
+| 33 | "Do it in main and leave them uncommited for me to review", then "Skip 4 I will later ask codex to do it do 1,2 and 3" | Claude Code fixed three of the four issues from the Codex review (decision 32) on `main`, test first, uncommitted. The AI log item was left to the owner and Codex. See decision 33. |
 
 Agent prompts worth noting: the CLAUDE.md and AGENTS.md rules ("draft one file at a time", "ask before adding a dependency", "state the task ID and requirement IDs") shaped how the agent responded to every prompt above. Without them the agent would have drafted all four specs at once.
 
@@ -312,3 +314,39 @@ Agent prompts worth noting: the CLAUDE.md and AGENTS.md rules ("draft one file a
   - A processed event for Bob, then "Resend last event" (a real click): `duplicate`.
   - Reload: all 8 delivered notifications came back as history, none highlighted, in the same feeds. Dave's suppressed level 20 was absent. No console errors.
 - Result: AC-60 is passing, 004-T9 is ticked, and the 004 spec has no open items. 004 waits only for the owner's review and commit.
+
+## Additional AI assistance: requirements brainstorming and independent review
+
+Recorded retrospectively. This assistance happened in a separate Codex chat alongside the implementation work in Claude Code.
+
+**30. Challenge review and initial functional specification.**
+- Prompt (summary): review the coding challenge for common mistakes and easily missed requirements, then help clarify the functional scope.
+- Tool used: Codex, with the challenge PDF, recruitment email and job description supplied as context.
+- Findings: the six required events must all be covered, even though the example calls show only four. Friend Accepted was interpreted as notifying the original requester. The referenced `Notification` class was absent from the PDF.
+- Scope clarified: the challenge permits simulated event producers and delivery. A broker, WebSocket server and game-client display are not required.
+- Produced: an initial functional specification covering event triggers, recipients, content, category preferences, delivery assumptions and acceptance scenarios. The owner subsequently supplied this specification to Claude Code for the repository's feature-by-feature workflow.
+- Proposed defaults, interpretations and extensions were identified separately from explicit challenge requirements.
+
+**31. Owner-led technical brainstorming and system boundaries.**
+- Prompt (summary): discuss a Python backend with replaceable intake, processing and delivery components.
+- Owner direction: use Python because of recent backend experience and confidence explaining the implementation.
+- Approach discussed: transport adapters submit events to a common processing entry point; notification rules remain independent of the incoming transport and outgoing delivery mechanism.
+- Clarification from checking the PDF: receiving events into the module remains required, but upstream transport infrastructure can be simulated. The demonstration must show an event entering the module and producing a notification decision.
+- Demonstration options considered: direct simulated producer calls, an HTTP-backed UI, RabbitMQ and WebSocket integration. These were options discussed, not implementation decisions made by Codex. Final choices were recorded through the Claude Code feature workflow.
+
+**32. Independent read-only reviews and regression verification.**
+- Prompt (summary): review the implementation against the challenge, identify concrete issues, and make no changes.
+- Tools used: repository inspection, the existing Python environment and pytest, temporary in-memory probes, local HTTP/SSE requests, and a separate fresh clone and environment.
+- Verification: the completed public submission installed successfully from a fresh clone, passed 443 tests and ran the scripted demonstration. Live HTTP/SSE checks covered delivery, preference suppression, duplicates, failure responses and history on reconnect.
+- Issues identified: list/object preference categories caused a server error; demo checkboxes did not reflect saved preferences after reload; the README misstated event-ID retention; the AI log omitted this separate assistance.
+- Follow-up verification after changes: 449 tests passed, malformed categories returned validation errors, the demo loaded current preferences, and the README described the 10,000-ID retention limit.
+- Limitation: no browser was connected for the Codex review, so browser interaction was not independently rerun. Claude Code's browser verification remains recorded separately.
+- Repository work by Codex was read-only. No application code, feature specs or tests were edited during these reviews.
+
+**33. Fixes for the Codex review findings (Claude Code).**
+- Prompt quoted in the Prompt log. The owner first asked Claude Code to check the four findings from decision 32 without changing anything. All four were confirmed: `PUT /preferences` with `"category": []` or `{}` returned `500`, while `POST /events` handled the same values with `422`. The owner then asked for fixes on `main`, uncommitted, for findings 1 to 3, and kept finding 4 (this log) for Codex.
+- Finding 1: `PreferenceService.change` now checks that the category is a string before the set lookup, so a list or object gets `422 UNSUPPORTED_CATEGORY`, the same as `1` or `"pvp"`. Four failing tests were written first (core and HTTP).
+- Finding 2: `GET /demo/players` now returns each player's current Game and Social settings, read on every request with the core's default-on rule (`is_enabled`), and the page starts each checkbox from them. The wiring exposes the preference store for this. Three failing tests were written first. The README limitation about the checkboxes was removed, since it no longer applies.
+- Finding 3: the README now says the event-ID store keeps the most recent 10,000 IDs, so an event resent after that many newer ones is processed again. The limit was recorded in decision 11, but was left out when the README was written.
+- Also: the 004 spec, plan and feature log now say merged to `main`, and the plan describes the new player-list field.
+- Result: 449 passing tests. A run under uvicorn confirmed `422` for both malformed categories, and Dave's `game: false` in the player list after turning it off. The page was not rechecked in a browser after this change.

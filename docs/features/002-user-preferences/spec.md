@@ -1,5 +1,5 @@
 # Feature 002: User preferences
-Status: Implemented, awaiting owner review before commit
+Status: Implemented, merged to `main`
 Builds on: 001 (event intake and dispatch)
 
 Source: the brief ("enable or disable per category, representable by a simple map") and the Initial Functional Specification (`docs/functional-spec.md`), section 5 and acceptance scenarios 5 to 8 (mapped to this feature in decision 3).

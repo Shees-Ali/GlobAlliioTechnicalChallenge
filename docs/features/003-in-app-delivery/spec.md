@@ -1,5 +1,5 @@
 # Feature 003: In-app delivery
-Status: Implemented, awaiting owner review before commit
+Status: Implemented, merged to `main`
 Builds on: 001 (event intake and dispatch), 002 (user preferences)
 
 Source: the brief ("in-app only, the game client is assumed to have a way to receive notifications in real time, display may be mocked") and the Initial Functional Specification (`docs/functional-spec.md`), section 2 "Downstream notification delivery" and section 4. Settles base open questions Q7 (delivery mechanism and guarantee) and Q15 (player with no delivery token).

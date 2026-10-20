@@ -1,7 +1,7 @@
 # Plan: Feature 003 In-app delivery
 
 Implements: [spec.md](spec.md)
-Status: Implemented, awaiting owner review before commit
+Status: Implemented, merged to `main`
 
 ## 1. Summary
 `handle_event` gains one more check after the preference check: a missing or blank token returns a new `Outcome.UNDELIVERABLE` and the ID stays used. The delivery contract gets a typed failure, `DeliveryError` in `core`, which the HTTP adapter maps to `503 DELIVERY_FAILED`. A simulated `InAppChannel` replaces `ConsoleDelivery`. It records notifications per token in a bounded deque (limit in the constant `MAX_NOTIFICATIONS_PER_TOKEN = 100`), logs each one, and raises `DeliveryError` for tokens it was built to treat as unreachable.

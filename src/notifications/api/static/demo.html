@@ -1,0 +1,225 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Notifications demo</title>
+<style>
+  :root {
+    --bg: #f6f7f9; --panel: #ffffff; --text: #1d2330; --muted: #677085; --line: #dfe3ea;
+    --game: #2f6fde; --social: #1f9d6b; --live: #fff4cc; --error: #c43d3d; --ok: #1f9d6b;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #14171c; --panel: #1c2027; --text: #e6e9ef; --muted: #959db0; --line: #2d333d;
+      --game: #6a9cf5; --social: #4cc495; --live: #4a4120; --error: #f07272; --ok: #4cc495;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; font: 14px/1.45 system-ui, sans-serif; background: var(--bg); color: var(--text); }
+  header { padding: 16px 20px 4px; }
+  h1 { font-size: 18px; margin: 0 0 4px; }
+  header p { margin: 0; color: var(--muted); }
+  main { display: grid; grid-template-columns: 340px 1fr; gap: 16px; padding: 16px 20px 24px; }
+  @media (max-width: 900px) { main { grid-template-columns: 1fr; } }
+  section { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 14px; }
+  h2 { font-size: 14px; margin: 0 0 10px; }
+  label { display: block; margin: 8px 0 3px; color: var(--muted); font-size: 12px; }
+  select, input, button { font: inherit; width: 100%; padding: 6px 8px; border-radius: 6px;
+    border: 1px solid var(--line); background: var(--bg); color: var(--text); }
+  button { cursor: pointer; background: var(--game); border-color: var(--game); color: #fff; margin-top: 10px; }
+  button.secondary { background: transparent; color: var(--text); border-color: var(--line); }
+  button:disabled { opacity: .5; cursor: default; }
+  #log { list-style: none; margin: 12px 0 0; padding: 0; max-height: 260px; overflow: auto; font-size: 12px; }
+  #log li { padding: 5px 0; border-top: 1px solid var(--line); }
+  .status { font-weight: 600; }
+  .status.ok { color: var(--ok); }
+  .status.error { color: var(--error); }
+  #players { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 12px; }
+  .player { display: flex; flex-direction: column; min-height: 220px; }
+  .player h3 { margin: 0; font-size: 14px; }
+  .meta { color: var(--muted); font-size: 12px; margin-bottom: 8px; }
+  .toggles { display: flex; gap: 14px; font-size: 12px; margin-bottom: 8px; }
+  .toggles label { display: flex; align-items: center; gap: 5px; margin: 0; color: var(--text); font-size: 12px; }
+  .toggles input { width: auto; }
+  .feed { list-style: none; margin: 0; padding: 0; overflow: auto; max-height: 280px; }
+  .feed li { padding: 6px 8px; border-left: 3px solid var(--line); margin-bottom: 6px; border-radius: 4px; }
+  .feed li.game { border-left-color: var(--game); }
+  .feed li.social { border-left-color: var(--social); }
+  .feed li.live { background: var(--live); animation: arrive 2.5s ease-out forwards; }
+  @keyframes arrive { 0% { transform: translateX(-6px); } 15% { transform: none; } 100% { background: transparent; } }
+  .tag { font-size: 11px; color: var(--muted); }
+  .note { color: var(--muted); font-style: italic; font-size: 12px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Gaming notifications, live demo</h1>
+  <p>Fire events as the game engine or social system would. Each player's column is their in-app feed.
+     Notifications that were already delivered load quietly as history; only new ones are highlighted.</p>
+</header>
+<main>
+  <section>
+    <h2>Fire an event</h2>
+    <form id="event-form">
+      <label for="event-type">Event</label>
+      <select id="event-type"></select>
+      <div id="event-fields"></div>
+      <button type="submit">Send event</button>
+    </form>
+    <button type="button" id="resend" class="secondary" disabled>Resend last event (same event_id)</button>
+    <ul id="log"></ul>
+  </section>
+  <section>
+    <h2>Players</h2>
+    <div id="players"></div>
+  </section>
+</main>
+<script>
+// The six event types, with each field's kind. Names match the module's event contract.
+const EVENTS = {
+  "level_up": { label: "Level up", fields: [["player_id", "player"], ["new_level", "number", 15]] },
+  "item_acquired": { label: "Item acquired", fields: [["player_id", "player"], ["item_name", "text", "SwordOfAzeroth"]] },
+  "challenge_completed": { label: "Challenge completed", fields: [["player_id", "player"], ["challenge_name", "text", "DragonSlayer"]] },
+  "friend_request": { label: "Friend request sent", fields: [["requester_id", "player", 3], ["recipient_id", "player", 1]] },
+  "friend_accepted": { label: "Friend request accepted", fields: [["accepter_id", "player", 1], ["requester_id", "player", 3]] },
+  "new_follower": { label: "New follower", fields: [["follower_id", "player", 2], ["followed_id", "player", 4]] },
+};
+const CATEGORIES = ["game", "social"];
+
+let players = [];
+let lastEvent = null;
+
+const $ = (id) => document.getElementById(id);
+
+function el(tag, attrs = {}, text) {
+  const node = document.createElement(tag);
+  for (const [key, value] of Object.entries(attrs)) node.setAttribute(key, value);
+  if (text !== undefined) node.textContent = text;
+  return node;
+}
+
+function logResult(action, response, body) {
+  const ok = response.ok;
+  const status = ok ? body.status : `${response.status} ${body.code ?? ""}`;
+  const item = el("li");
+  item.append(el("span", { class: `status ${ok ? "ok" : "error"}` }, status), ` ${action}`);
+  if (!ok && body.message) item.append(el("div", { class: "tag" }, body.message));
+  $("log").prepend(item);
+}
+
+async function send(method, path, payload, action) {
+  try {
+    const response = await fetch(path, {
+      method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload),
+    });
+    logResult(action, response, await response.json().catch(() => ({})));
+  } catch (error) {
+    logResult(action, { ok: false, status: "network" }, { message: String(error) });
+  }
+}
+
+function playerName(id) {
+  return players.find((p) => p.player_id === id)?.display_name ?? `#${id}`;
+}
+
+function renderFields() {
+  const container = $("event-fields");
+  container.replaceChildren();
+  for (const [name, kind, initial] of EVENTS[$("event-type").value].fields) {
+    container.append(el("label", { for: `f-${name}` }, name));
+    let input;
+    if (kind === "player") {
+      input = el("select", { id: `f-${name}`, "data-field": name, "data-kind": kind });
+      for (const p of players) input.append(el("option", { value: p.player_id }, `${p.player_id} ${p.display_name}`));
+      input.value = String(initial ?? 1);
+    } else {
+      input = el("input", { id: `f-${name}`, "data-field": name, "data-kind": kind,
+                            type: kind === "number" ? "number" : "text", value: initial ?? "" });
+    }
+    container.append(input);
+  }
+}
+
+function describe(payload) {
+  const parts = Object.entries(payload)
+    .filter(([key]) => key !== "type" && key !== "event_id")
+    .map(([key, value]) => (key.endsWith("_id") ? `${key}=${value} (${playerName(value)})` : `${key}=${value}`));
+  return `${EVENTS[payload.type].label}: ${parts.join(", ")}`;
+}
+
+$("event-form").addEventListener("submit", (e) => {
+  e.preventDefault();
+  const payload = { event_id: crypto.randomUUID(), type: $("event-type").value };
+  for (const input of $("event-fields").querySelectorAll("[data-field]")) {
+    const kind = input.dataset.kind;
+    payload[input.dataset.field] = kind === "text" ? input.value : Number(input.value);
+  }
+  lastEvent = payload;
+  $("resend").disabled = false;
+  send("POST", "/events", payload, describe(payload));
+});
+
+$("resend").addEventListener("click", () => {
+  if (lastEvent) send("POST", "/events", lastEvent, `Resend of ${describe(lastEvent)}`);
+});
+
+function addToFeed(list, notification, kind) {
+  const item = el("li", { class: `${notification.category} ${kind}` });
+  item.append(el("div", {}, notification.message),
+              el("div", { class: "tag" }, `${notification.category} · ${notification.event_type}${kind === "live" ? " · new" : ""}`));
+  list.prepend(item);
+}
+
+function openFeed(player, list) {
+  const source = new EventSource(`/feeds/${encodeURIComponent(player.token)}`);
+  // The server resends the full history on every (re)connect, so start from an empty list.
+  source.addEventListener("open", () => list.replaceChildren());
+  // History is shown quietly. Only live items are new notifications (no popups on a late connect).
+  source.addEventListener("history", (e) => addToFeed(list, JSON.parse(e.data), "history"));
+  source.addEventListener("live", (e) => addToFeed(list, JSON.parse(e.data), "live"));
+}
+
+function renderPlayer(player) {
+  const card = el("section", { class: "player" });
+  card.append(el("h3", {}, `${player.display_name} (player ${player.player_id})`));
+  const meta = player.token === null ? "no in-app channel: events for this player are undeliverable"
+             : player.unreachable ? `token ${player.token}, channel unreachable: delivery fails with 503`
+             : `token ${player.token}`;
+  card.append(el("div", { class: "meta" }, meta));
+
+  const toggles = el("div", { class: "toggles" });
+  for (const category of CATEGORIES) {
+    const label = el("label");
+    const box = el("input", { type: "checkbox" });
+    box.checked = true;  // categories are on unless turned off
+    box.addEventListener("change", () => send("PUT", "/preferences",
+      { player_id: player.player_id, category, enabled: box.checked },
+      `${player.display_name}: ${category} ${box.checked ? "on" : "off"}`));
+    label.append(box, category === "game" ? "Game events" : "Social events");
+    toggles.append(label);
+  }
+  card.append(toggles);
+
+  if (player.token === null) {
+    card.append(el("p", { class: "note" }, "No feed to show."));
+  } else {
+    const list = el("ul", { class: "feed" });
+    card.append(list);
+    openFeed(player, list);
+  }
+  $("players").append(card);
+}
+
+async function start() {
+  players = await (await fetch("/demo/players")).json();
+  for (const [type, spec] of Object.entries(EVENTS)) $("event-type").append(el("option", { value: type }, spec.label));
+  $("event-type").addEventListener("change", renderFields);
+  renderFields();
+  players.forEach(renderPlayer);
+}
+
+start();
+</script>
+</body>
+</html>

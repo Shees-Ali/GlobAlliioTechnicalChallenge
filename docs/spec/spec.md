@@ -35,15 +35,15 @@ Each is answered with the owner during the feature where it matters, then moved 
 | # | Question | Raised by | Settle in | Status |
 |---|---|---|---|---|
 | Q1 | The brief says a `Notification` class is provided but none was attached. Wait for the recruiter's reply, or define our own? | brief gap, email sent to the recruiter | first feature | Decided in 001: define our own. |
-| Q2 | Language and shape: Python, Node, or both; one app or API plus separate frontend? | owner | first feature | Language decided in 001: Python with FastAPI, one app. Whether the demo is a separate frontend is settled in feature 004. |
+| Q2 | Language and shape: Python, Node, or both; one app or API plus separate frontend? | owner | first feature | Decided. Language in 001: Python with FastAPI, one app. Demo in 004: a script plus a page served by the same app, no separate frontend. |
 | Q3 | Who is notified for `friendRequestAccepted(1, 3)`? | ambiguity in the brief | social events feature | Decided: the original requester (functional spec, FR-6 in 001). |
 | Q4 | What counts as a "rare or valuable" item? | ambiguity in the brief | game events feature | Decided: the producer decides, the module notifies every item it receives (FR-3 in 001). |
 | Q5 | Preference granularity beyond category? | brief says simplified | preferences feature | Decided in 002: per category only, Game and Social, on unless turned off (FR-26 to FR-28). |
-| Q6 | Include PvP events? | brief says optional | after required scope | Open. Excluded from the initial scope by the functional spec. |
+| Q6 | Include PvP events? | brief says optional | after required scope | Closed: not built. The functional spec excludes PvP from the initial scope, and no feature was picked for it. Adding it is one event definition per PvP event (P4). Listed as out of scope in the README. |
 | Q7 | Real-time mechanism and delivery guarantee | brief says assume a mechanism exists | delivery feature | Decided in 003: a simulated in-app channel records per token, live push is left to 004; one delivery attempt, the producer retries, and a failure is `503 DELIVERY_FAILED` (FR-37 to FR-47). Intake is transport neutral (001). |
-| Q8 | Persistence and scale limits to state in the README | not covered by brief | packaging | Open. Settled at packaging. |
+| Q8 | Persistence and scale limits to state in the README | not covered by brief | packaging | Decided in 004: everything stays in memory in one process, and the limits are listed under Known limitations in `README.md` (FR-59). |
 
-Questions raised inside a feature (numbered Q9 onward) live in that feature's `spec.md` and are all resolved for 001.
+Questions raised inside a feature (numbered Q9 onward) live in that feature's `spec.md`. All of them, Q9 to Q29, are resolved.
 
 ## 3. Feature spec blueprint
 Copy to `docs/features/NNN-name/spec.md` when the owner picks a feature.

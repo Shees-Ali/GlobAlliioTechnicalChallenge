@@ -6,11 +6,9 @@ from fastapi.responses import JSONResponse
 from notifications.core.errors import DeliveryError, ErrorCode, InvalidEventError, InvalidPreferenceError
 from notifications.core.preferences import PreferenceService
 from notifications.core.service import NotificationService
-from notifications.simulated.in_app_channel import InAppChannel
-from notifications.simulated.in_memory_directory import InMemoryUserDirectory
-from notifications.simulated.in_memory_preferences import InMemoryPreferenceStore
-from notifications.simulated.in_memory_processed_events import InMemoryProcessedEvents
-from notifications.simulated.sample_users import SAMPLE_USERS, UNREACHABLE_TOKENS
+from notifications.api.demo import demo_router
+from notifications.simulated.sample_users import UNREACHABLE_TOKENS
+from notifications.simulated.wiring import build_simulated
 
 
 def _rejected(error: InvalidEventError | InvalidPreferenceError | DeliveryError, status: int = 422) -> JSONResponse:
@@ -50,12 +48,10 @@ def create_app(service: NotificationService, preference_service: PreferenceServi
 
 def build_default_app() -> FastAPI:
     """Wire the simulated dependencies for `uvicorn notifications.api.app:app`."""
-    directory = InMemoryUserDirectory(SAMPLE_USERS)
-    preferences = InMemoryPreferenceStore()  # shared, so a change applies to the next event
-    channel = InAppChannel(unreachable_tokens=UNREACHABLE_TOKENS)
-    service = NotificationService(directory, channel, InMemoryProcessedEvents(), preferences)
-    app = create_app(service, PreferenceService(directory, preferences))
-    app.state.channel = channel  # lets tests and the demo see what each client would have received
+    sim = build_simulated()
+    app = create_app(sim.service, sim.preference_service)
+    app.state.channel = sim.channel  # lets tests and the demo see what each client would have received
+    app.include_router(demo_router(sim.channel, sim.users, UNREACHABLE_TOKENS))
     return app
 
 

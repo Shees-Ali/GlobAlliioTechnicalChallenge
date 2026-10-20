@@ -29,13 +29,17 @@ Updated whenever a tool is added or used differently.
 | Claude Code's structured question tool | Used when the agent needed an owner decision with options and tradeoffs. Used for the feature split (decision 3) and for the three idempotency decisions (decision 11). Most other decisions were put as tables in chat or in the plan and answered in free text. |
 | File read, write and edit tools; shell | Read the base docs at session start, wrote the docs and code, ran `pytest`, `git`, `curl` and `uvicorn`. |
 | `pytest`, `uvicorn`, `curl`, a Python virtual environment | Verification. `pytest` after every task, and one hand run of the real app with `curl` before closing 001. |
+| Claude Code, model Claude Opus 5.5 (from feature 004) | Feature 004 was planned and built with Opus 5.5 instead of Sonnet 5.5, in the same VS Code extension and under the same `AGENTS.md` and `CLAUDE.md` rules. |
+| Throwaway probe scripts in the agent's scratch folder | Used in 004 to check that tests and fixes really work: a deliberately racy `subscribe` to prove the concurrency test can fail, and an in-process uvicorn server to watch a real disconnect release a feed. Not kept in the repo. |
+| Claude in Chrome (MCP) | Used for 004's browser check of the demo page (AC-60, decision 29). It was not connected on the first try (decisions 27 and 28), and the owner connected it. The agent drove the real page: clicks for the checkboxes and the resend button, and the page's own form handlers for the six event types. |
 
-Plan mode was used once, for the event-ID amendment (decision 11), because it changes a `core` interface and touches more than three files, as CLAUDE.md requires. The approved plan was saved and then implemented. It was skipped for task 001-T1 even though that touched more than three files, because the reviewed `plan.md` and `tasks.md` already fixed the design (a judgment call, not an instruction followed).
+Plan mode was used four times, each time because the change touched a `core` interface or more than three files, as CLAUDE.md requires: the event-ID amendment (decision 11), 002-T2 (decision 15), 003-T2 (decision 20) and 004-T4 (decision 27). Each plan was approved by the owner and then implemented. It was skipped for task 001-T1 even though that touched more than three files, because the reviewed `plan.md` and `tasks.md` already fixed the design (a judgment call, not an instruction followed).
 
-Not used so far, so reviewers are not misled: subagents (the `spec-reviewer` and `test-writer` roles in CLAUDE.md, and the exploration and planning agents that plan mode offers; the agent explored the code directly because it had written it in the same session), any MCP integration, and any second AI tool.
+Not used, so reviewers are not misled: subagents (the `spec-reviewer` and `test-writer` roles in CLAUDE.md, and the exploration and planning agents that plan mode offers; the agent explored the code directly because it had written it in the same session), and any second AI tool. One MCP integration was used: Claude in Chrome, for the 004 browser check (decision 29).
 
 How the agent was kept honest:
 - Tasks T2 to T9 and T11 each started with a test that was run and seen to fail. The same holds for T13 (validator), T14, T15, T16 (delivery failure) and T18; T17's concurrency test passed on arrival, so a control with a deliberately racy store proves it can detect a double delivery. Exceptions in the first round: T1, whose architecture test passes on an empty `core`, so it was checked by adding a probe import and seeing it fail; and T10, whose tests passed on arrival (decision 7).
+- Features 002 to 004 followed the same rule. Where a test passed on arrival, the agent broke the code on purpose from a backup copy, or used a throwaway probe, to show the test can fail (decisions 20 and 27). In 004 this caught a concurrency test that could never fail.
 - The agent stated its assumptions instead of hiding them. They are listed in decision 6.
 - The owner reviewed each spec and plan before code and changed the agent's draft where it disagreed: names looked up from a user directory instead of carried in the event (4), the delivery token (5), FastAPI instead of the standard library only (6), and `httpx2` instead of `httpx` (8).
 
@@ -116,6 +120,15 @@ The owner's prompts that changed the direction of the work, quoted from the sess
 | 18 | "Does this mean that when a undelivered request is sent again it won't be delivered to the user? we need to make sure that we sent it", then "Nevermind the undelivered should consume event id based on the assumption that the notification history is mainatined, otherwise once the user gets the token they will get a lot of popups aat once since they are in game notifcations" | The owner challenged FR-41, weighed three options and kept it, adding the reason and the history assumption to the spec. See decision 18. |
 | 19 | "draft the plan" | Spec taken as approved. Draft 003 plan with six decisions pending. See decision 19. |
 | 20 | "Implement" | All six 003 tasks implemented test first, nothing committed. Plan mode for T2. Probes showed the tests that passed on arrival can fail. See decision 20. |
+| 21 | "Let's move on to te last feature" | Started 004 on its own branch. The agent asked four questions before drafting, and the owner took all four recommendations. See decision 21. |
+| 22 | "This does not mean that the user receives the event that they missed when they had no token, make sure of this. We need to avoid uneccesary popups in case of a late connect in a real scenario." | Accepted Q26 with a condition. Added FR-60 (feed items marked history or live) and AC-62 (no backlog after a token is issued). See decision 22. |
+| 23 | "Q27 sounds good, a new dependency just to showcase a simple scenario is not justfied, automated tests already validate the functionality. Q28 Yes by token not by player id similar way a firebase push token works. Q29 Self contained" | Closed Q27 to Q29 as recommended. See decision 23. |
+| 24 | "yes snake case with a camelcase comment in docs and file" | Closed Q25. Producers use snake_case, with the brief's camelCase names in a source comment and the README. See decision 24. |
+| 25 | "yes draft it" | Spec taken as approved. Draft 004 plan with seven decisions pending. See decision 25. |
+| 26 | "sounds good work on tasks" | Accepted D1 to D7 as recommended. Plan marked reviewed. Draft 004 tasks with eight test-first tasks. See decision 26. |
+| 27 | "Implement and leave everything for review" | T1 to T7 implemented test first, nothing committed. Plan mode for T4. A probe showed the first concurrency test could not fail, and it was fixed. See decision 27. |
+| 28 | "yes update the shared files and readme, and close any open questions. And then run a pass through the repo to make sure everything is marked close" | Base files updated with the owner's OK, Q6 and Q8 closed, checklist ticked after checking each item, stale statuses and tool notes fixed. The browser check stays open as 004-T9. See decision 28. |
+| 29 | "I have run them but do a pass using the browser extension yourself as well once" | The owner ran the browser check, and the agent ran it again through Claude in Chrome. AC-60 and 004-T9 closed. See decision 29. |
 
 Agent prompts worth noting: the CLAUDE.md and AGENTS.md rules ("draft one file at a time", "ask before adding a dependency", "state the task ID and requirement IDs") shaped how the agent responded to every prompt above. Without them the agent would have drafted all four specs at once.
 
@@ -221,3 +234,81 @@ Agent prompts worth noting: the CLAUDE.md and AGENTS.md rules ("draft one file a
 - Hand run under uvicorn: player 1 processed and logged by the channel; player 5 (no token) undeliverable; player 6 (unreachable) `503 DELIVERY_FAILED`, and its resend `503` again, which shows the ID was released; player 5's resend duplicate; Game off for player 5, then a new event suppressed; a Friend Request to player 5 undeliverable; one from player 5 to player 1 processed. The channel logged exactly two deliveries, both to player 1.
 - For the README at packaging: the channel is in memory, keeps 100 notifications per token, and simulates unreachable tokens; the notification history is assumed to live outside the module.
 - Base open questions Q5 and Q7, and 001's Q15, were settled in 002 and 003 but still showed as open. `docs/spec/spec.md` is a base file, so the agent asked before editing it. The owner said "Yes mark them as decided": Q5 and Q7 are now decided in the base table, and Q15's row in the 001 spec points to 003 FR-40 and FR-41. Q15 was never in the base table, because it was raised inside 001.
+
+## Feature 004: Demonstration
+
+**21. Four owner decisions before the 004 spec.**
+- Prompt: "Let's move on to te last feature" (quoted in the Prompt log). 004 was already picked in the feature log, so the agent cut `feature/004-demonstration` from `main` and read the brief and functional spec sections that 004 serves (the brief's four example calls, scenario 9).
+- Owner decisions (all four recommendations accepted, structured question tool): (1) the demo is a script plus a live page served by the same app, which settles the demo half of base Q2; (2) simulated producers take an injected submit function, so they stay transport neutral like the 001 intake; (3) live push to the page is Server-Sent Events, chosen over WebSocket (needs an extra dependency, and two-way is not needed) and polling (not real-time); (4) the README is part of 004, which settles Q8.
+- Produced: draft `docs/features/004-demonstration/spec.md` with FR-48 to FR-59, AC-52 to AC-61, and open questions Q25 (producer method names), Q26 (feed receives history on connect), Q27 (how the page is tested without a browser framework), Q28 (feeds by token or player ID) and Q29 (page fires events or only watches).
+- Not used: subagents and plan mode. The spec is one file, drafted for review.
+
+**22. Q26 accepted with a condition: history on connect is not a replay.**
+- Prompt quoted in the Prompt log. The owner accepted the recommendation that a feed receives what the channel already holds when it connects, but made sure this does not undo FR-41 (decision 18).
+- Changes to the 004 spec:
+  - FR-56 now says what the feed never sends: undeliverable and suppressed events (never delivered), and failed deliveries (never recorded). A player who gets a token later receives nothing from before.
+  - New FR-60: each item a feed sends is marked history or live. Only live items are new notifications. The page shows history without a new-notification highlight, so a reload or late connect raises no popups. This is the same concern as FR-41, applied to the feed.
+  - AC-58 now checks the history and live marks. New AC-62: an undeliverable event for a player with no token never reaches a token issued later.
+- Came from review: the first draft (FR-56) already excluded undeliverable events, but did not stop a late-connecting client from showing past notifications as new. That gap was found only because the owner raised the popup case.
+- Q25 and Q27 to Q29 were still open at this point.
+
+**23. 004 open questions Q27 to Q29 closed.**
+- Prompt quoted in the Prompt log. All three recommendations accepted.
+- Q27: the page's interaction is checked by an automated test of its content plus a manual browser check. No Playwright or Selenium: a new dependency to show a simple scenario is not justified, and the automated tests already prove the behavior behind the page (AC-60).
+- Q28: feeds are addressed by delivery token, not player ID, in the way a Firebase push token addresses a device (FR-55).
+- Q29: the page is self-contained. It fires events and changes preferences through the existing routes (FR-57).
+- Q25 (producer method names) was still open at this point.
+
+**24. Q25 closed, all 004 spec questions resolved.**
+- Prompt quoted in the Prompt log. The owner accepted snake_case and added a detail: the brief's camelCase name is kept as a comment beside each producer method in the source, as well as in the README. This keeps the code PEP 8 while a reviewer can still match each call to the brief's example.
+- Changed: FR-48 states the naming and the comment, and FR-59 requires the README to show the brief's four calls next to ours.
+- The 004 spec has no open questions left.
+
+**25. 004 spec approved, plan drafted.**
+- Prompt: "yes draft it" (quoted in the Prompt log). The spec is marked reviewed by owner.
+- Produced: draft `docs/features/004-demonstration/plan.md`. No new dependencies and no change to `core`. Seven decisions are pending for the owner (D1 to D7): live push as subscriptions inside `InAppChannel`; a bounded live queue per feed that closes a feed that stops reading; one shared wiring function for the app and the script; demo routes in their own router; a recording wrapper for the duplicate step instead of an `event_id` argument; `python -m notifications.demo` as the script command; the page as a static HTML file in the package.
+- Design point found while planning: the history snapshot and the live hand-off must be taken under the same lock as the channel's append. Otherwise a notification delivered while a feed connects is either lost or shown twice, which would break FR-60 (history or live, never both). This is why D1 recommends putting subscriptions in the channel and not in a wrapper.
+- Testing limit recorded as R10: `TestClient` cannot read an endless SSE response, so the stream generator is tested directly with `asyncio.run`, and the route is checked by hand. pytest-asyncio was not added.
+
+**26. 004 plan approved, tasks drafted.**
+- Prompt: "sounds good work on tasks" (quoted in the Prompt log), after the owner checked that a new feed receives what the token already holds marked as history. The agent confirmed it (FR-60, AC-58) and made the plan summary say so in plain words.
+- Owner decisions: D1 to D7 accepted as recommended. Plan marked reviewed by owner.
+- Produced: `docs/features/004-demonstration/tasks.md` with eight test-first tasks. T4 touches more than three files, so it is marked to run in plan mode first. T8 includes the manual browser run that completes AC-60, and the delivery checklist in the base `tasks.md`, which needs the owner's OK to edit.
+
+**27. Feature 004 implemented, left uncommitted for owner review.**
+- Prompt: "Implement and leave everything for review" (quoted in the Prompt log). As in 002 and 003, nothing was committed.
+- Result: 443 passing tests (385 before 004). AC-52 to AC-62 are traced to tests in the spec. T1 to T7 are ticked. T8 stays open until the browser check of the page (AC-60, manual half) is done.
+- Test-first record: every task started with tests that were run and seen to fail (collection errors for T1, T2, T4, T6; ten failures for T3; twelve for T5; eight for T7).
+- Plan mode was used for T4 (more than three files), and the owner approved the short plan.
+- Found by checking, not by the plan:
+  - The first version of the concurrency test (a delivery while a feed subscribes) could not fail. A probe with a deliberately racy `subscribe` passed it 20 times out of 20, because under Python's GIL the producer thread finished every delivery before the subscribe ran. The test's producer now yields after each delivery, and the test asserts that the subscribe landed mid-stream. After that the racy version failed every trial, and the real channel passed 30 runs out of 30.
+  - Live items are handed to the feed's event loop with `call_soon_threadsafe`. If that loop has already ended, the feed is closed and delivery still succeeds (FR-58). A test covers it.
+  - On reconnect, the browser's `EventSource` gets the full history again, so the page clears a feed's list on each `open`. Without this, a reconnect would show every notification twice.
+  - Browsers allow about six HTTP/1.1 connections per host, and the page holds five open feeds, so a second tab may stall. The preference checkboxes start as "on" because there is no read route for preferences. Both are listed in the README instead of adding routes.
+  - The demo script first printed the brief's camelCase calls as if they were ours. It now prints our snake_case call with the brief's next to it (Q25).
+- Hand checks: the demo script output was read in full. Under uvicorn, `curl` on `/feeds/token-1` received a posted Level Up as `live`, and on reconnect as `history`. An in-process server showed one open feed while a client was connected and none after it disconnected (R11). An HTTP walk-through of every action the page sends behaved as specified: six events delivered, suppressed and then delivered again for player 4 with no replay, `503` for player 6, `422` for a self-targeted request, three `live` items on player 4's feed and three `history` items on reconnect.
+- Not done: the browser check of the page itself. The Claude in Chrome extension was not connected. It needs the owner, or a later session with the extension.
+- Base files not edited at this point, waiting for the owner's OK: the feature log rows for 002 to 004, the delivery checklist, and Q2 and Q8 in the base spec's open-question table (done in decision 28).
+
+**28. Project close-out pass.**
+- Prompt quoted in the Prompt log. The owner approved editing the base files and asked for every open item to be closed.
+- Each checklist item was checked before it was ticked: the GitHub repository answers without signing in (public); a clean copy of every tracked and new file installed with the README's commands, passed all 443 tests and ran the demo script; a wheel build includes the demo page, so a normal install serves `/demo`.
+- Base files changed: the feature log (002 and 003 merged, 004 awaiting review), all five delivery checklist items, and base questions Q2 (fully decided), Q6 (closed, PvP not built, out of scope in the README) and Q8 (decided in 004).
+- Statuses: the 002 and 003 specs and plans said "awaiting owner review before commit", but both were merged. They now say merged.
+- The Tools used section was stale. It said plan mode was used once (it was used four times) and that no MCP integration was tried (Claude in Chrome was tried in 004). Both are corrected, and the "kept honest" list now covers 002 to 004.
+- Sweep method: searched every Markdown file for "Status", "Open", "Pending", "awaiting", "TBD", "TODO" and unticked boxes, then fixed each hit or left it on purpose. Left on purpose: the history in earlier decisions (it describes what was pending at the time), the blueprint templates in `docs/spec/` (their placeholders and empty boxes are the template), and the owner's `docs/functional-spec.md`, which keeps its own "Draft for discussion" status because it is the owner's source document.
+- Not closed, and why: the browser check of the demo page (AC-60 manual half). The Claude in Chrome extension was still not connected, and ticking it without a run would be false. 004-T8 was split, so everything else is ticked and the browser check is its own task, 004-T9. 004 itself is implemented and waiting for the owner's review and commit.
+
+**29. Browser check of the demo page (AC-60 manual half, 004-T9).**
+- Prompt quoted in the Prompt log. The owner ran the check themselves and asked the agent to do one pass too, with the browser extension now connected.
+- Port 8000 was held by another process that did not answer, so the agent left it alone and ran the app on port 8010.
+- What the agent did in the page, and what it saw:
+  - On load: six player columns. Eve is labelled "no in-app channel" with no feed, and Frank is labelled unreachable.
+  - Level up for Alice: `processed`, and the message appeared in Alice's feed highlighted as new.
+  - The other five event types: each `processed` and shown in the right player's feed (the brief's friend request from 3 to 1 in Alice's feed, the accept in Carol's).
+  - A friend request from Bob to Bob: `422 SELF_TARGETED`, with the message shown on the page.
+  - Dave's Game checkbox off (a real click): `updated`, then a level up for Dave was `suppressed`. Checkbox on again: the next level up was `processed`, and the suppressed one never appeared.
+  - Eve: `undeliverable`. Frank: `503 DELIVERY_FAILED`. Resending Frank's event gave `503` again rather than duplicate, which is correct: a failed delivery releases its ID (FR-39).
+  - A processed event for Bob, then "Resend last event" (a real click): `duplicate`.
+  - Reload: all 8 delivered notifications came back as history, none highlighted, in the same feeds. Dave's suppressed level 20 was absent. No console errors.
+- Result: AC-60 is passing, 004-T9 is ticked, and the 004 spec has no open items. 004 waits only for the owner's review and commit.

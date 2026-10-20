@@ -13,7 +13,7 @@ Features are chosen one at a time with the project owner. Add a row when one is 
 | 4 | Demonstration | `docs/features/004-demonstration/` | Implemented, merged to `main` |
 
 ## Delivery checklist (from the brief)
-- [x] Project compiles and runs from a fresh clone using the provided scripts (checked in 004 on a clean copy: install, `pytest`, demo script)
+- [x] Project compiles and runs from a fresh clone using the provided scripts (`scripts/`, added in decision 37 and run on clean copies in PowerShell and Bash; the earlier tick in decision 28 had counted README commands as scripts)
 - [x] Public GitHub repository (https://github.com/Shees-Ali/GlobAlliioTechnicalChallenge, 004 is on GitHub once pushed)
 - [x] README explaining how to run it and the main features (`README.md`, feature 004)
 - [x] AI process and prompts kept in the repo (`docs/ai-process/`)

@@ -5,34 +5,40 @@ A real-time notification module for an online multiplayer gaming platform, built
 Everything runs in one process with simulated dependencies. No broker, database, WebSocket server or game client is needed.
 
 ## Requirements
-Python 3.12 or newer.
+Python 3.12 or newer. The setup script checks this and stops with a message if it is not found.
 
-## Install
+## Build and run with the scripts
+The `scripts/` folder has one script per task, for Windows PowerShell and for macOS, Linux or Git Bash. Run them from the repository root after cloning:
 ```
 git clone https://github.com/Shees-Ali/GlobAlliioTechnicalChallenge.git
 cd GlobAlliioTechnicalChallenge
+```
+
+| Task | Windows (PowerShell) | macOS, Linux, Git Bash |
+|---|---|---|
+| Set up: create `.venv` and install | `powershell -ExecutionPolicy Bypass -File scripts\setup.ps1` | `bash scripts/setup.sh` |
+| Run the tests | `powershell -ExecutionPolicy Bypass -File scripts\test.ps1` | `bash scripts/test.sh` |
+| Run the demo script | `powershell -ExecutionPolicy Bypass -File scripts\demo.ps1` | `bash scripts/demo.sh` |
+| Start the app | `powershell -ExecutionPolicy Bypass -File scripts\run.ps1` | `bash scripts/run.sh` |
+
+`-ExecutionPolicy Bypass` only lets that one script run; it changes no system setting. Extra arguments are passed on: to pytest for the test script (for example `-q`) and to uvicorn for the run script (for example `--port 8001`). The scripts use `.venv` directly, so there is nothing to activate.
+
+### Without the scripts
+```
 python -m venv .venv
 .venv\Scripts\activate            # Windows
 source .venv/bin/activate         # macOS and Linux
 pip install -e ".[dev]"
+pytest                            # tests
+python -m notifications.demo      # demo script
+uvicorn notifications.api.app:app # app
 ```
 
-## Run the tests
-```
-pytest
-```
-
-## Run the demo script
-```
-python -m notifications.demo
-```
+## The demo script
 No server needed. It plays the brief's four example calls, the other two required events, a category turned off and on again, a player with no in-app channel, a player whose channel is down, and a resent event, then prints what each player's channel holds.
 
-## Run the app and the live demo page
-```
-uvicorn notifications.api.app:app
-```
-Open http://127.0.0.1:8000/demo. Each player's column is their in-app feed, updated live over Server-Sent Events. Use the form to fire any of the six events, the checkboxes to turn a player's Game or Social events on and off, and "Resend last event" to show a duplicate. Notifications already delivered load as plain history; only new ones are highlighted, so a reload never shows old notifications as new.
+## The app and the live demo page
+Start the app with the run script (or `uvicorn notifications.api.app:app`), then open http://127.0.0.1:8000/demo. Each player's column is their in-app feed, updated live over Server-Sent Events. Use the form to fire any of the six events, the checkboxes to turn a player's Game or Social events on and off, and "Resend last event" to show a duplicate. Notifications already delivered load as plain history; only new ones are highlighted, so a reload never shows old notifications as new.
 
 You can also post events directly:
 ```
@@ -91,6 +97,7 @@ src/notifications/
   simulated/   in-memory stand-ins: user directory, preference store, event-ID store, in-app channel, producers
   api/         FastAPI adapter, demo routes and the demo page
   demo.py      the demo script
+scripts/       setup, test, demo and run scripts, for PowerShell and for Bash
 tests/         automated tests for each behavioural acceptance criterion, referenced by ID
 docs/
   functional-spec.md   the functional spec the features trace to

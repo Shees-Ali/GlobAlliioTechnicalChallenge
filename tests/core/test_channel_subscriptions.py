@@ -184,8 +184,9 @@ def test_an_undeliverable_event_never_reaches_a_token_issued_later():  # AC-62, 
         assert subscription.history == []
 
         assert service.handle_event(missed) is Outcome.DUPLICATE
-        assert service.handle_event({**missed, "event_id": new_id(), "new_level": 3}) is Outcome.PROCESSED
-        assert [n.message for n in await drain(subscription)] == ["Congratulations! You've reached level 3!"]
+        later = {**missed, "event_id": new_id(), "new_level": 3}
+        assert service.handle_event(later) is Outcome.PROCESSED
+        assert [n.event_id for n in await drain(subscription)] == [later["event_id"]]
 
     asyncio.run(scenario())
 

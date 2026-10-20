@@ -98,7 +98,7 @@ def test_a_posted_event_is_pushed_to_its_tokens_feed_only():  # AC-57, FR-55
         assert client.post("/events", json=payload).json() == {"status": "processed"}
 
         event, data = parse(await next_item(mine))
-        assert (event, data["message"]) == ("live", "Congratulations! You've reached level 15!")
+        assert (event, data["event_id"], data["recipient_id"]) == ("live", payload["event_id"], 1)
         assert await next_item(other) == ": keep-alive\n\n"  # nothing for player 2
         await mine.aclose()
         await other.aclose()

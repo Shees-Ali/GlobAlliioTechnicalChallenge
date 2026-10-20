@@ -153,23 +153,23 @@ None. All questions raised for this feature are resolved. The reasoning is in `d
 ## Traceability
 | ID | Test | Status |
 |---|---|---|
-| AC-1 | `tests/core/test_service_level_up.py::test_level_up_delivers_one_game_notification_to_the_player` | Passing |
-| AC-2 | `tests/core/test_service_game_events.py::test_item_acquired_notifies_the_player_with_a_readable_item_name` | Passing |
-| AC-3 | `tests/core/test_service_game_events.py::test_challenge_completed_notifies_the_player_with_the_quest_name` | Passing |
-| AC-4 | `tests/core/test_service_social_events.py::test_friend_request_from_3_to_1_notifies_user_1_about_user_3` | Passing |
-| AC-5 | `tests/core/test_service_social_events.py::test_friend_accepted_by_1_notifies_user_3_about_user_1` | Passing |
-| AC-6 | `tests/core/test_service_social_events.py::test_new_follower_notifies_the_followed_player_about_the_follower` | Passing |
-| AC-7 | `tests/core/test_all_events.py::test_every_message_is_non_empty_readable_text` | Passing |
-| AC-8 | `tests/core/test_service_level_up.py::test_delivery_has_been_invoked_by_the_time_handle_event_returns`, `tests/api/test_events_route.py::test_a_valid_event_returns_200_and_delivery_has_already_been_invoked` | Passing |
-| AC-9 | `tests/core/test_service_game_events.py::test_every_submitted_item_is_notified_with_no_rarity_filter`, `tests/core/test_service_game_events.py::test_every_submitted_challenge_is_notified` | Passing |
+| AC-1 | `tests/core/test_events.py::test_each_event_notifies_the_right_player_with_the_right_content[level_up]` | Passing |
+| AC-2 | `tests/core/test_events.py::test_each_event_notifies_the_right_player_with_the_right_content[item_acquired]` | Passing |
+| AC-3 | `tests/core/test_events.py::test_each_event_notifies_the_right_player_with_the_right_content[challenge_completed]` | Passing |
+| AC-4 | `tests/core/test_events.py::test_each_event_notifies_the_right_player_with_the_right_content[friend_request]` | Passing |
+| AC-5 | `tests/core/test_events.py::test_each_event_notifies_the_right_player_with_the_right_content[friend_accepted]` | Passing |
+| AC-6 | `tests/core/test_events.py::test_each_event_notifies_the_right_player_with_the_right_content[new_follower]` | Passing |
+| AC-7 | `tests/core/test_events.py::test_each_event_notifies_the_right_player_with_the_right_content` (each exact message) | Passing |
+| AC-8 | `tests/api/test_events_route.py::test_a_valid_event_returns_200_and_delivery_has_already_been_invoked` | Passing |
+| AC-9 | `tests/core/test_events.py::test_every_submitted_item_is_notified_with_no_rarity_filter` | Passing |
 | AC-10 | `tests/core/test_all_events.py::test_events_are_independent_of_each_other` | Passing |
-| AC-11 | `tests/core/test_service_social_events.py::test_payloads_carry_ids_and_the_display_name_comes_from_the_directory` | Passing |
-| AC-12 | `tests/core/test_service_level_up.py::test_a_game_event_looks_up_only_the_recipient`, `tests/core/test_service_game_events.py::test_game_events_look_up_only_the_recipient` | Passing |
+| AC-11 | `tests/core/test_events.py::test_each_event_notifies_the_right_player_with_the_right_content` (names come from the directory) | Passing |
+| AC-12 | `tests/core/test_events.py::test_a_game_event_looks_up_only_the_recipient`, `::test_a_social_event_looks_up_the_recipient_and_the_actor` | Passing |
 | AC-13 | `tests/core/test_validation.py`, `tests/core/test_all_events.py` (missing, wrong type, blank, extra field, unsupported type), `tests/api/test_events_route.py::test_an_invalid_event_returns_422_with_the_reason_and_no_delivery` | Passing |
 | AC-14 | `tests/core/test_service_rejections.py::test_a_self_targeted_social_event_is_rejected`, `tests/core/test_service_rejections.py::test_a_self_targeted_event_is_rejected_before_any_lookup` | Passing |
 | AC-15 | `tests/core/test_service_rejections.py::test_an_unknown_recipient_is_rejected_for_game_events`, `..._for_social_events`, `tests/core/test_service_rejections.py::test_an_unknown_acting_player_is_rejected` | Passing |
-| AC-16 | `tests/core/test_formatting.py::test_readable_name`, `tests/core/test_service_game_events.py::test_item_acquired_notifies_the_player_with_a_readable_item_name` | Passing |
-| AC-17 | `tests/core/test_service_level_up.py::test_delivery_receives_the_recipients_token` | Passing |
+| AC-16 | `tests/core/test_formatting.py::test_readable_name`, `tests/core/test_events.py::test_an_item_name_that_already_has_spaces_is_unchanged`, `tests/core/test_events.py::test_each_event_notifies_the_right_player_with_the_right_content[item_acquired]` | Passing |
+| AC-17 | `tests/core/test_events.py::test_each_event_notifies_the_right_player_with_the_right_content` (each token) | Passing |
 | AC-18 | `tests/core/test_validation.py` (`event_id` cases), `tests/core/test_all_events.py::test_a_missing_event_id_is_rejected`, `tests/core/test_all_events.py::test_a_malformed_event_id_is_rejected`, `tests/api/test_events_route.py::test_an_event_without_an_event_id_returns_422` | Passing |
 | AC-19 | `tests/core/test_idempotency.py::test_the_same_event_submitted_twice_is_delivered_once`, `tests/core/test_idempotency.py::test_a_duplicate_is_ignored_however_often_it_is_resent` | Passing |
 | AC-20 | `tests/core/test_idempotency.py::test_a_duplicate_returns_a_duplicate_outcome_and_not_an_error`, `tests/api/test_events_route.py::test_a_duplicate_event_returns_200_with_a_duplicate_status` | Passing |

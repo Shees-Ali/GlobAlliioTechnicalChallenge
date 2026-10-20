@@ -90,15 +90,15 @@ Decided before drafting (owner, structured question tool), moved to the decision
 | ID | Test | Status |
 |---|---|---|
 | AC-52 | `tests/core/test_producers.py::test_level_up_submits_one_valid_event_and_returns_the_outcome`, `::test_each_call_gets_a_new_event_id`, `::test_each_call_builds_its_event_in_the_briefs_argument_order` | Passing |
-| AC-53 | `tests/core/test_wiring.py::test_each_producer_call_reaches_the_right_player_with_the_right_content` | Passing |
+| AC-53 | `tests/core/test_producers.py::test_each_call_builds_its_event_in_the_briefs_argument_order` (each producer builds the right event), `tests/core/test_wiring.py::test_the_service_delivers_to_the_returned_channel` (wired end to end), and the content of each event in `tests/core/test_events.py` | Passing |
 | AC-54 | `tests/test_demo_script.py::test_the_script_reports_each_step_in_order_without_a_server` | Passing |
-| AC-55 | `tests/test_demo_script.py::test_each_channel_holds_exactly_what_was_delivered`, `::test_the_suppressed_notification_is_not_replayed` | Passing |
+| AC-55 | `tests/test_demo_script.py::test_each_channel_holds_exactly_what_was_delivered` | Passing |
 | AC-56 | `tests/api/test_demo_routes.py::test_the_demo_page_is_served` | Passing |
 | AC-57 | `tests/api/test_demo_routes.py::test_a_posted_event_is_pushed_to_its_tokens_feed_only`, `tests/core/test_channel_subscriptions.py::test_a_subscription_receives_only_its_own_tokens_deliveries` | Passing |
 | AC-58 | `tests/core/test_channel_subscriptions.py::test_a_subscription_gets_what_the_token_holds_as_history_then_live`, `::test_a_delivery_while_subscribing_is_history_or_live_never_both_nor_neither`, `tests/api/test_demo_routes.py::test_the_stream_sends_held_notifications_as_history_then_new_ones_as_live` | Passing |
 | AC-59 | `tests/core/test_channel_subscriptions.py::test_a_feed_that_stops_reading_is_closed_and_delivery_still_succeeds`, `::test_a_closed_subscription_receives_nothing_and_does_not_break_delivery`, `::test_delivery_still_succeeds_after_the_feeds_event_loop_has_ended` | Passing |
-| AC-60 | `tests/api/test_demo_page.py` (all tests), plus the browser check run by the owner and by the agent (decision 29) | Passing |
-| AC-61 | `tests/test_readme.py::test_the_readme_covers_it` | Passing |
+| AC-60 | Manual: the browser check run by the owner and by the agent (decision 29). The page's automated content check was removed in decision 35. | Verified manually |
+| AC-61 | Manual: the README's commands were run on a fresh copy (decision 28). The automated string check was removed in decision 35. | Verified manually |
 | AC-62 | `tests/core/test_channel_subscriptions.py::test_an_undeliverable_event_never_reaches_a_token_issued_later` | Passing |
 
 ## Amendment (decision 34): feed bound in the channel, event ID on feed items

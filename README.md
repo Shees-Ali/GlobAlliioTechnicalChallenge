@@ -91,7 +91,7 @@ src/notifications/
   simulated/   in-memory stand-ins: user directory, preference store, event-ID store, in-app channel, producers
   api/         FastAPI adapter, demo routes and the demo page
   demo.py      the demo script
-tests/         one or more tests per acceptance criterion, referenced by ID
+tests/         automated tests for each behavioural acceptance criterion, referenced by ID
 docs/
   functional-spec.md   the functional spec the features trace to
   spec/                constitution, base spec, templates, feature log

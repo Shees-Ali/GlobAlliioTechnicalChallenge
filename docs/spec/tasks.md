@@ -29,7 +29,7 @@ Copy to `docs/features/NNN-name/tasks.md` after the feature's plan is reviewed b
 - [ ] NNN-T2 ...
 
 ## Done when
-Every AC in the feature spec has a passing test, the traceability table is filled in,
+Every behavioural AC in the feature spec has a passing test, any manually verified AC has its check recorded, the traceability table is filled in,
 earlier tests still pass, and the decision log has the feature's decisions.
 ```
 

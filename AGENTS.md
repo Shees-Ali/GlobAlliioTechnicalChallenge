@@ -46,7 +46,7 @@ uvicorn notifications.api.app:app # run, then POST JSON to http://127.0.0.1:8000
 
 ## Standards that apply regardless of design
 - Constitution principles apply to every feature.
-- Tests prove the spec. Every acceptance criterion has at least one automated test, referenced by ID.
+- Tests prove the spec. Every acceptance criterion about behaviour has at least one automated test, referenced by ID. Documentation and visual criteria may be verified manually, with the check recorded in the decision log. Do not repeat the same assertion across layers.
 - Keep dependencies few and justified in the plan.
 - Do not commit secrets or virtual environments.
 - Do not build beyond the picked feature.

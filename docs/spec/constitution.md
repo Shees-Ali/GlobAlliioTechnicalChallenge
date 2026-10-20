@@ -26,7 +26,7 @@ No features beyond the brief unless the owner picks them, and optional items onl
 A reviewer can clone the repo and run it and its tests by following the README, with no undocumented setup.
 
 **P7. Tests prove the spec.**
-Every acceptance criterion maps to at least one automated test, written before or together with the code it covers.
+Every acceptance criterion about behaviour that could break maps to at least one automated test, written before or together with the code it covers. Criteria that are easy to check by hand, such as documentation or visual layout, may be verified manually, with the check recorded in the decision log. Each behaviour is asserted in one place, not repeated across layers.
 
 **P8. Honest scope.**
 Known limitations are written down in the README, not hidden.

@@ -86,7 +86,7 @@ Decided before drafting (owner, structured question tool), moved to the decision
 |---|---|---|
 | AC-39 | `tests/core/test_service_delivery.py::test_a_processed_event_is_held_by_the_channel_under_the_recipients_token` | Passing |
 | AC-40 | `tests/core/test_in_app_channel.py::test_each_token_holds_only_its_own_notifications_in_order` | Passing |
-| AC-41 | `tests/core/test_service_delivery.py::test_a_recipient_with_no_token_is_undeliverable`, `tests/core/test_service_level_up.py::test_an_event_with_no_directory_token_is_undeliverable` | Passing |
+| AC-41 | `tests/core/test_service_delivery.py::test_a_recipient_with_no_token_is_undeliverable` | Passing |
 | AC-42 | `tests/core/test_service_delivery.py::test_an_undeliverable_event_uses_up_its_id` | Passing |
 | AC-43 | `tests/core/test_service_delivery.py::test_a_turned_off_category_is_suppressed_even_with_no_token` | Passing |
 | AC-44 | `tests/core/test_service_delivery.py::test_a_delivery_failure_reaches_the_caller_and_the_resend_is_delivered` | Passing |

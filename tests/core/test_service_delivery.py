@@ -111,7 +111,6 @@ def test_a_processed_event_is_held_by_the_channel_under_the_recipients_token(
 
     [held] = channel.delivered_to("token-1")
     assert (held.recipient_id, held.category, held.event_type) == (1, Category.GAME, "level_up")
-    assert "15" in held.message
 
 
 def test_a_notification_carries_the_event_id_of_its_event(service, delivery):  # AC-67, FR-64
